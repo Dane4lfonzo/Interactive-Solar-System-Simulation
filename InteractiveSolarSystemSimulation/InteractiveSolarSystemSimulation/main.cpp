@@ -131,7 +131,7 @@ TransformMode currentMode = GLOBAL_3D;
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-float cameraSpeed = 0.05f;
+float cameraSpeed = 1.0f;
 float fov = 45.0f;
 
 // Lighting
@@ -307,17 +307,65 @@ void setupShapeBuffers(Shape3D& shape) {
     glEnableVertexAttribArray(2);
 }
 
-// Initialize all shapes
+// Initialize all shapes (This is where the planets can be modified)
 void initializeShapes() {
     shapes.clear();
-    shapes.resize(1);
+    shapes.resize(9);
 
-    // Sphere
+    // Sun
     createSphere(shapes[0]);
-    shapes[0].color = glm::vec3(0.3f, 0.3f, 1.0f);
-    shapes[0].position = glm::vec3(2.0f, 1.0f, 0.0f);
+    shapes[0].position = glm::vec3(-15.0f, 0.0f, 0.0f);
+    shapes[0].scale = glm::vec3(26.16f); // Scaled for Sun
     setupShapeBuffers(shapes[0]);
 
+    // Mercury
+    createSphere(shapes[1]);
+    shapes[1].position = glm::vec3(2.0f, 0.3f, 0.0f);
+    shapes[1].scale = glm::vec3(0.4f); // Scaled for Mercury
+    setupShapeBuffers(shapes[1]);
+
+    // Venus
+    createSphere(shapes[2]);
+    shapes[2].position = glm::vec3(4.0f, 0.3f, 0.0f);
+    shapes[2].scale = glm::vec3(1.15f); // Scaled for Venus
+    setupShapeBuffers(shapes[2]);
+
+    // Earth
+    createSphere(shapes[3]);
+    //shapes[0].color = glm::vec3(0.3f, 0.3f, 1.0f);
+    shapes[3].position = glm::vec3(6.0f, 0.3f, 0.0f);
+    shapes[3].scale = glm::vec3(1.2f); // Scaled for Earth
+    setupShapeBuffers(shapes[3]);
+
+    // Mars
+    createSphere(shapes[4]);
+    shapes[4].position = glm::vec3(8.0f, 0.3f, 0.0f);
+    shapes[4].scale = glm::vec3(0.6f); // Scaled for Mars
+    setupShapeBuffers(shapes[4]);
+
+    // Jupiter
+    createSphere(shapes[5]);
+    shapes[5].position = glm::vec3(14.0f, 0.3f, 0.0f);
+    shapes[5].scale = glm::vec3(9.6f); // Scaled for Jupiter
+    setupShapeBuffers(shapes[5]);
+
+    // Saturn
+    createSphere(shapes[6]);
+    shapes[6].position = glm::vec3(20.0f, 0.3f, 0.0f);
+    shapes[6].scale = glm::vec3(8.5f); // Scaled for Saturn
+    setupShapeBuffers(shapes[6]);
+
+    // Uranus
+    createSphere(shapes[7]);
+    shapes[7].position = glm::vec3(26.0f, 0.3f, 0.0f);
+    shapes[7].scale = glm::vec3(4.8f); // Scaled for Uranus
+    setupShapeBuffers(shapes[7]);
+
+    // Neptune
+    createSphere(shapes[8]);
+    shapes[8].position = glm::vec3(28.0f, 0.3f, 0.0f);
+    shapes[8].scale = glm::vec3(4.6f); // Scaled for Neptune
+    setupShapeBuffers(shapes[8]);
 }
 
 // Animation functions
@@ -714,7 +762,18 @@ int main() {
     unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     unsigned int program = glCreateProgram();
-    unsigned int sphereTexture = loadTexture("earth.jpg");
+
+    // Planet Textures
+    unsigned int sunTexture = loadTexture("sun.jpg");
+    unsigned int mercuryTexture = loadTexture("mercury.jpg");
+    unsigned int venusTexture = loadTexture("venus.jpg");
+    unsigned int earthTexture = loadTexture("earth.jpg");
+    unsigned int marsTexture = loadTexture("mars.jpg");
+    unsigned int jupiterTexture = loadTexture("jupiter.jpg");
+    unsigned int saturnTexture = loadTexture("saturn.jpg");
+    unsigned int uranusTexture = loadTexture("uranus.jpg");
+    unsigned int neptuneTexture = loadTexture("neptune.jpg");
+
     glAttachShader(program, vs);
     glAttachShader(program, fs);
     glLinkProgram(program);
@@ -751,11 +810,6 @@ int main() {
 
         glUseProgram(program);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, sphereTexture);
-        // Tell the shader sampler to read from texture unit 0
-        glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
-
         // Set up matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glm::mat4 projection = glm::perspective(glm::radians(fov), 1200.0f / 900.0f, 0.1f, 100.0f);
@@ -775,6 +829,37 @@ int main() {
         // Draw all shapes
         for (size_t i = 0; i < shapes.size(); ++i) {
             const auto& shape = shapes[i];
+
+            glActiveTexture(GL_TEXTURE0);
+            // Here is where it selects the right texture for each planet
+            if (i == 0) {
+                glBindTexture(GL_TEXTURE_2D, sunTexture);
+            }
+            else if (i == 1) {
+                glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+            }
+            else if (i == 2) {
+                glBindTexture(GL_TEXTURE_2D, venusTexture);
+            }
+            else if (i == 3) {
+                glBindTexture(GL_TEXTURE_2D, earthTexture);
+            }
+            else if (i == 4) {
+                glBindTexture(GL_TEXTURE_2D, marsTexture);
+            }
+            else if (i == 5) {
+                glBindTexture(GL_TEXTURE_2D, jupiterTexture);
+            }
+            else if (i == 6) {
+                glBindTexture(GL_TEXTURE_2D, saturnTexture);
+            }
+            else if (i == 7) {
+                glBindTexture(GL_TEXTURE_2D, uranusTexture);
+            }
+            else if (i == 8) {
+                glBindTexture(GL_TEXTURE_2D, neptuneTexture);
+            }
+            glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
 
             glm::mat4 globalTransform = createTransform3D(shape);
             glm::mat4 localTransform = createLocalTransform3D(shape);
