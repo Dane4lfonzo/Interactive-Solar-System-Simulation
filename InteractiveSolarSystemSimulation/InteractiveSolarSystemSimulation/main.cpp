@@ -2,6 +2,8 @@
 #pragma warning(disable: 4244)
 #pragma warning(disable: 4267)
 
+#define STB_IMAGE_IMPLEMENTATION
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -12,6 +14,7 @@
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+#include "stb_image.h"
 
 const float PI = 3.14159265358979323846f;
 
@@ -19,16 +22,19 @@ const float PI = 3.14159265358979323846f;
 const char* vertexShaderSource = "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
 "layout (location = 1) in vec3 aNormal;\n"
+"layout (location = 2) in vec2 aTexCoords;\n"
 "uniform mat4 model;\n"
 "uniform mat4 view;\n"
 "uniform mat4 projection;\n"
 "uniform mat3 normalMatrix;\n"
 "out vec3 FragPos;\n"
 "out vec3 Normal;\n"
+"out vec2 TexCoords;\n"
 "void main()\n"
 "{\n"
 "   FragPos = vec3(model * vec4(aPos, 1.0));\n"
 "   Normal = normalMatrix * aNormal;\n"
+"   TexCoords = aTexCoords;\n"
 "   gl_Position = projection * view * vec4(FragPos, 1.0);\n"
 "}\0";
 
@@ -36,12 +42,15 @@ const char* fragmentShaderSource = "#version 330 core\n"
 "out vec4 FragColor;\n"
 "in vec3 FragPos;\n"
 "in vec3 Normal;\n"
-"uniform vec3 objectColor;\n"
+"in vec2 TexCoords;\n"
+//"uniform vec3 objectColor;\n"
+"uniform sampler2D texture_diffuse;\n"
 "uniform vec3 lightPos;\n"
 "uniform vec3 lightColor;\n"
 "uniform vec3 viewPos;\n"
 "void main()\n"
 "{\n"
+"   vec3 objectColor = texture(texture_diffuse, TexCoords).rgb;\n"
 "   // Ambient\n"
 "   float ambientStrength = 0.1;\n"
 "   vec3 ambient = ambientStrength * lightColor;\n"
@@ -150,6 +159,39 @@ unsigned int compileShader(unsigned int type, const char* source) {
     return shader;
 }
 
+unsigned int loadTexture(const char* path) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+
+    // Flips the texture on the Y axis so the image isn't upside down on the sphere
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+
+    if (data) {
+        GLenum format = (nrComponents == 4) ? GL_RGBA : GL_RGB;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        // Texture parameters for wrapping and filtering
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
+}
+
 // Matrix calculations
 glm::mat4 createTransform3D(const Shape3D& shape) {
     glm::mat4 model = glm::mat4(1.0f);
@@ -204,6 +246,12 @@ void createSphere(Shape3D& shape) {
             shape.vertices.push_back(x / radius);
             shape.vertices.push_back(y / radius);
             shape.vertices.push_back(z / radius);
+
+            // Texture Coordinates (U, V)
+            float u = static_cast<float>(j) / slices;
+            float v = static_cast<float>(i) / stacks;
+            shape.vertices.push_back(u);
+            shape.vertices.push_back(v);
         }
     }
 
@@ -247,12 +295,16 @@ void setupShapeBuffers(Shape3D& shape) {
         shape.indices.data(), GL_STATIC_DRAW);
 
     // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     // Normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    // Texture Coordinate attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 }
 
 // Initialize all shapes
@@ -416,7 +468,7 @@ void displayInfo() {
     system("clear");
 #endif
 
-    std::cout << "=== LAB06: 3D GRAPHICS & HOMOGENEOUS COORDINATES ===" << std::endl;
+    std::cout << "=== Interactive Solar System Simulation ===" << std::endl;
     std::cout << "Current Shape: " << currentShape + 1 << "/" << shapes.size() << " (";
 
     switch (shapes[currentShape].type) {
@@ -662,6 +714,7 @@ int main() {
     unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     unsigned int program = glCreateProgram();
+    unsigned int sphereTexture = loadTexture("earth.jpg");
     glAttachShader(program, vs);
     glAttachShader(program, fs);
     glLinkProgram(program);
@@ -697,6 +750,11 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, sphereTexture);
+        // Tell the shader sampler to read from texture unit 0
+        glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
 
         // Set up matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
