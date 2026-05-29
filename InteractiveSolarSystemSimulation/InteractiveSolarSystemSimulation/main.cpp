@@ -1,6 +1,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4244)
 #pragma warning(disable: 4267)
+using namespace std;
 
 #define STB_IMAGE_IMPLEMENTATION
 
@@ -43,39 +44,55 @@ const char* fragmentShaderSource = "#version 330 core\n"
 "in vec3 FragPos;\n"
 "in vec3 Normal;\n"
 "in vec2 TexCoords;\n"
-//"uniform vec3 objectColor;\n"
+"uniform vec3 objectColor;\n"
 "uniform sampler2D texture_diffuse;\n"
 "uniform vec3 lightPos;\n"
 "uniform vec3 lightColor;\n"
 "uniform vec3 viewPos;\n"
+"uniform bool isSun;\n"
+"uniform bool useTexture;\n"
 "void main()\n"
 "{\n"
 "   vec3 objectColor = texture(texture_diffuse, TexCoords).rgb;\n"
+"   if (useTexture) {\n"
+"       objectColor = texture(texture_diffuse, TexCoords).rgb;\n"
+"   }\n"
+"   if (isSun) {\n"
+"       FragColor = vec4(objectColor, 1.0);\n" // Sun glows at 100% brightness, no shadows
+"   } else {\n"
 "   // Ambient\n"
 "   float ambientStrength = 0.1;\n"
 "   vec3 ambient = ambientStrength * lightColor;\n"
 "   // Diffuse\n"
 "   vec3 norm = normalize(Normal);\n"
+"   //Attenuation\n"
 "   vec3 lightDir = normalize(lightPos - FragPos);\n"
+"   float distance = length(lightPos - FragPos);\n"
+"   float constant = 1.0;\n"
+"   float linear = 0.002;\n"
+"   float quadratic = 0.00005;\n"
+"   float attenuation = 1.0 /"
+"   (constant + linear * distance + quadratic * distance * distance);\n"
 "   float diff = max(dot(norm, lightDir), 0.0);\n"
-"   vec3 diffuse = diff * lightColor;\n"
+"   vec3 diffuse = diff * lightColor * attenuation;;\n"
 "   // Specular\n"
 "   float specularStrength = 0.5;\n"
 "   vec3 viewDir = normalize(viewPos - FragPos);\n"
 "   vec3 reflectDir = reflect(-lightDir, norm);\n"
 "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);\n"
-"   vec3 specular = specularStrength * spec * lightColor;\n"
+"   vec3 specular = specularStrength * spec * lightColor * attenuation;\n"
 "   vec3 result = (ambient + diffuse + specular) * objectColor;\n"
 "   FragColor = vec4(result, 1.0);\n"
-"}\n\0";
+"   }\n"
+"   }\0";
 
 // Shape types
 enum ShapeType {SPHERE};
 
 // 3D Shape structure
 struct Shape3D {
-    std::vector<float> vertices;
-    std::vector<unsigned int> indices;
+    vector<float> vertices;
+    vector<unsigned int> indices;
     unsigned int VAO, VBO, EBO;
 
     // Global transformations
@@ -115,7 +132,7 @@ glm::mat4 createTransform3D(const Shape3D& shape);
 glm::mat4 createLocalTransform3D(const Shape3D& shape);
 
 // Global variables
-std::vector<Shape3D> shapes;
+vector<Shape3D> shapes;
 int currentShape = 0;
 bool showGrid = true;
 bool showOrigin = true;
@@ -131,15 +148,23 @@ TransformMode currentMode = GLOBAL_3D;
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 direction;
+
+float yaw = -90.0f; // Initialized to -90.0f so it points straight down the -Z axis
+float pitch = 0.0f; // 0.0f means looking perfectly level at the horizon
+bool firstMouse = true;     // Detects mouse
+float lastX = 600.0f;       // Center X of 1200 width window
+float lastY = 450.0f;       // Center Y of 900 height window
+
 float cameraSpeed = 1.0f;
 float fov = 45.0f;
 
 // Lighting
-glm::vec3 lightPos = glm::vec3(3.0f, 3.0f, 3.0f);
+glm::vec3 lightPos = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
 const float MOVE_SPEED = 0.1f;
-const float ROTATE_SPEED = 2.0f;
+const float ROTATE_SPEED = 1.0f;
 const float SCALE_SPEED = 0.05f;
 
 // Utility functions
@@ -153,7 +178,7 @@ unsigned int compileShader(unsigned int type, const char* source) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        std::cout << "Shader compilation failed: " << infoLog << std::endl;
+        cout << "Shader compilation failed: " << infoLog << endl;
         return 0;
     }
     return shader;
@@ -185,7 +210,7 @@ unsigned int loadTexture(const char* path) {
         stbi_image_free(data);
     }
     else {
-        std::cout << "Texture failed to load at path: " << path << std::endl;
+        cout << "Texture failed to load at path: " << path << endl;
         stbi_image_free(data);
     }
 
@@ -230,14 +255,14 @@ void createSphere(Shape3D& shape) {
     // Generate vertices
     for (int i = 0; i <= stacks; ++i) {
         float stackAngle = PI / 2 - i * PI / stacks;
-        float xy = radius * cos(stackAngle);
-        float z = radius * sin(stackAngle);
+        float xz = radius * cos(stackAngle);
+        float y = radius * sin(stackAngle);
 
         for (int j = 0; j <= slices; ++j) {
             float sectorAngle = j * 2 * PI / slices;
 
-            float x = xy * cos(sectorAngle);
-            float y = xy * sin(sectorAngle);
+            float x = xz * cos(sectorAngle);
+            float z = xz * sin(sectorAngle);
 
             shape.vertices.push_back(x);
             shape.vertices.push_back(y);
@@ -314,7 +339,7 @@ void initializeShapes() {
 
     // Sun
     createSphere(shapes[0]);
-    shapes[0].position = glm::vec3(-15.0f, 0.0f, 0.0f);
+    shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);
     shapes[0].scale = glm::vec3(26.16f); // Scaled for Sun
     setupShapeBuffers(shapes[0]);
 
@@ -405,17 +430,26 @@ void updateHierarchicalAnimation(float deltaTime) {
 }
 
 void updateRotationAnimation(float deltaTime) {
+
+    // Planet Rotation speed
+    std::vector<float> rotationSpeeds = {
+     14.0f,   // Sun
+     10.0f,   // Mercury
+     -6.0f,   // Venus (retrograde)
+     30.0f,   // Earth
+     24.0f,   // Mars
+     70.0f,   // Jupiter
+     60.0f,   // Saturn
+     -40.0f,  // Uranus (retrograde-ish)
+     45.0f    // Neptune
+    };
+
     if (rotationAnimation) {
         globalTime += deltaTime;
         for (size_t i = 0; i < shapes.size(); ++i) {
             float time = globalTime + shapes[i].animationPhase;
-
-            shapes[i].rotation.x = time * 45.0f + static_cast<float>(i) * 30.0f;
-            shapes[i].rotation.y = time * 60.0f + static_cast<float>(i) * 45.0f;
-            shapes[i].rotation.z = time * 30.0f + static_cast<float>(i) * 60.0f;
-
-            float scale = 0.8f + 0.4f * sin(time * 3.0f + static_cast<float>(i));
-            shapes[i].scale = glm::vec3(scale);
+            // planet self rotation
+            shapes[i].rotation.y += rotationSpeeds[i] * deltaTime;
         }
     }
 }
@@ -424,17 +458,17 @@ void updateRotationAnimation(float deltaTime) {
 void drawGrid(unsigned int program) {
     if (!showGrid) return;
 
-    std::vector<float> gridVertices;
+    vector<float> gridVertices;
 
     // Grid lines in XZ plane
-    for (int i = -10; i <= 10; ++i) {
+    for (int i = -30; i <= 30; ++i) {
         float pos = static_cast<float>(i) * 0.5f;
         // X lines
-        gridVertices.insert(gridVertices.end(), { pos, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f });
-        gridVertices.insert(gridVertices.end(), { pos, 0.0f, 5.0f, 0.0f, 1.0f, 0.0f });
+        gridVertices.insert(gridVertices.end(), { pos, 0.0f, -15.0f, 0.0f, 1.0f, 0.0f });
+        gridVertices.insert(gridVertices.end(), { pos, 0.0f, 15.0f, 0.0f, 1.0f, 0.0f });
         // Z lines
-        gridVertices.insert(gridVertices.end(), { -5.0f, 0.0f, pos, 0.0f, 1.0f, 0.0f });
-        gridVertices.insert(gridVertices.end(), { 5.0f, 0.0f, pos, 0.0f, 1.0f, 0.0f });
+        gridVertices.insert(gridVertices.end(), { -15.0f, 0.0f, pos, 0.0f, 1.0f, 0.0f });
+        gridVertices.insert(gridVertices.end(), { 15.0f, 0.0f, pos, 0.0f, 1.0f, 0.0f });
     }
 
     unsigned int gridVAO, gridVBO;
@@ -516,56 +550,94 @@ void displayInfo() {
     system("clear");
 #endif
 
-    std::cout << "=== Interactive Solar System Simulation ===" << std::endl;
-    std::cout << "Current Shape: " << currentShape + 1 << "/" << shapes.size() << " (";
+    cout << "=== Interactive Solar System Simulation ===" << endl;
+    cout << "Current Shape: " << currentShape + 1 << "/" << shapes.size() << " (";
 
     switch (shapes[currentShape].type) {
-    case SPHERE: std::cout << "Sphere"; break;
+    case SPHERE: cout << "Sphere"; break;
     }
 
-    std::cout << ")" << std::endl;
-    std::cout << "Transform Mode: ";
+    cout << ")" << endl;
+    cout << "Transform Mode: ";
 
     switch (currentMode) {
-    case GLOBAL_3D: std::cout << "GLOBAL"; break;
-    case LOCAL_3D: std::cout << "LOCAL"; break;
-    case HIERARCHICAL_3D: std::cout << "HIERARCHICAL"; break;
+    case GLOBAL_3D: cout << "GLOBAL"; break;
+    case LOCAL_3D: cout << "LOCAL"; break;
+    case HIERARCHICAL_3D: cout << "HIERARCHICAL"; break;
     }
 
-    std::cout << std::endl;
+    cout << endl;
 
     const auto& shape = shapes[currentShape];
-    std::cout << std::fixed << std::setprecision(2);
+    cout << fixed << setprecision(2);
 
-    std::cout << "\n--- CURRENT SHAPE TRANSFORMATIONS ---" << std::endl;
-    std::cout << "Position: (" << shape.position.x << ", " << shape.position.y << ", " << shape.position.z << ")" << std::endl;
-    std::cout << "Rotation: (" << shape.rotation.x << "°, " << shape.rotation.y << "°, " << shape.rotation.z << "°)" << std::endl;
-    std::cout << "Scale: (" << shape.scale.x << ", " << shape.scale.y << ", " << shape.scale.z << ")" << std::endl;
-    std::cout << "Local Position: (" << shape.localPosition.x << ", " << shape.localPosition.y << ", " << shape.localPosition.z << ")" << std::endl;
-    std::cout << "Local Rotation: (" << shape.localRotation.x << "°, " << shape.localRotation.y << "°, " << shape.localRotation.z << "°)" << std::endl;
-    std::cout << "Local Scale: (" << shape.localScale.x << ", " << shape.localScale.y << ", " << shape.localScale.z << ")" << std::endl;
+    cout << "\n--- CURRENT SHAPE TRANSFORMATIONS ---" << endl;
+    cout << "Position: (" << shape.position.x << ", " << shape.position.y << ", " << shape.position.z << ")" << endl;
+    cout << "Rotation: (" << shape.rotation.x << "°, " << shape.rotation.y << "°, " << shape.rotation.z << "°)" << endl;
+    cout << "Scale: (" << shape.scale.x << ", " << shape.scale.y << ", " << shape.scale.z << ")" << endl;
+    cout << "Local Position: (" << shape.localPosition.x << ", " << shape.localPosition.y << ", " << shape.localPosition.z << ")" << endl;
+    cout << "Local Rotation: (" << shape.localRotation.x << "°, " << shape.localRotation.y << "°, " << shape.localRotation.z << "°)" << endl;
+    cout << "Local Scale: (" << shape.localScale.x << ", " << shape.localScale.y << ", " << shape.localScale.z << ")" << endl;
 
-    std::cout << "\n--- CAMERA ---" << std::endl;
-    std::cout << "Position: (" << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << ")" << std::endl;
-    std::cout << "FOV: " << fov << "°" << std::endl;
+    cout << "\n--- CAMERA ---" << endl;
+    cout << "Position: (" << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << ")" << endl;
+    cout << "FOV: " << fov << "°" << endl;
 
-    std::cout << "\n--- ANIMATION ---" << std::endl;
-    std::cout << "Orbit Animation: " << (orbitAnimation ? "ON" : "OFF") << std::endl;
-    std::cout << "Hierarchical Animation: " << (hierarchicalAnimation ? "ON" : "OFF") << std::endl;
-    std::cout << "Rotation Animation: " << (rotationAnimation ? "ON" : "OFF") << std::endl;
+    cout << "\n--- ANIMATION ---" << endl;
+    cout << "Orbit Animation: " << (orbitAnimation ? "ON" : "OFF") << endl;
+    cout << "Hierarchical Animation: " << (hierarchicalAnimation ? "ON" : "OFF") << endl;
+    cout << "Rotation Animation: " << (rotationAnimation ? "ON" : "OFF") << endl;
 
-    std::cout << "\n--- DISPLAY ---" << std::endl;
-    std::cout << "Grid: " << (showGrid ? "VISIBLE" : "HIDDEN") << std::endl;
-    std::cout << "Origin: " << (showOrigin ? "VISIBLE" : "HIDDEN") << std::endl;
+    cout << "\n--- DISPLAY ---" << endl;
+    cout << "Grid: " << (showGrid ? "VISIBLE" : "HIDDEN") << endl;
+    cout << "Origin: " << (showOrigin ? "VISIBLE" : "HIDDEN") << endl;
 
-    std::cout << "\n--- CONTROLS ---" << std::endl;
-    std::cout << "TAB: Switch shapes | M: Change transform mode" << std::endl;
-    std::cout << "WASD: Move XZ | RF: Move Y | QE: Rotate Y | ZC: Rotate X | VB: Rotate Z" << std::endl;
-    std::cout << "TY: Scale | Arrow Keys: Camera movement | +/-: FOV" << std::endl;
-    std::cout << "1: Orbit animation | 2: Hierarchical animation | 3: Rotation animation" << std::endl;
-    std::cout << "G: Toggle grid | O: Toggle origin" << std::endl;
-    std::cout << "0: Reset current shape | ESC: Exit" << std::endl;
-    std::cout << "=======================================================" << std::endl;
+    cout << "\n--- CONTROLS ---" << endl;
+    cout << "TAB: Switch shapes | M: Change transform mode" << endl;
+    cout << "WASD: Move XZ | RF: Move Y | QE: Rotate Y | ZC: Rotate X | VB: Rotate Z" << endl;
+    cout << "TY: Scale | Arrow Keys: Camera movement | +/-: FOV" << endl;
+    cout << "1: Orbit animation | 2: Hierarchical animation | 3: Rotation animation" << endl;
+    cout << "G: Toggle grid | O: Toggle origin" << endl;
+    cout << "0: Reset current shape | ESC: Exit" << endl;
+    cout << "=======================================================" << endl;
+}
+
+// Detect user's mouse input
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    // Calculate how far the mouse moved since the last frame
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // Reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+
+    // Multiply by a sensitivity setting so it's not too twitchy
+    const float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    // Update global yaw and pitch variables
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // Safety clamp so your screen doesn't flip upside down
+    if (pitch > 89.0f)  pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    // Recalculate cameraFront immediately based on the new mouse angles
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(direction);
 }
 
 // Input handling
@@ -612,7 +684,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             else shape.position.y -= MOVE_SPEED;
             break;
 
-            // Rotation controls
+        // Rotation controls
         case GLFW_KEY_Q:
             if (currentMode == LOCAL_3D) shape.localRotation.y += ROTATE_SPEED;
             else shape.rotation.y += ROTATE_SPEED;
@@ -638,7 +710,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             else shape.rotation.z -= ROTATE_SPEED;
             break;
 
-            // Scale controls
+        // Scale controls
         case GLFW_KEY_T:
             if (currentMode == LOCAL_3D) shape.localScale += SCALE_SPEED;
             else shape.scale += SCALE_SPEED;
@@ -654,7 +726,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             }
             break;
 
-            // Camera controls
+        // Camera controls
         case GLFW_KEY_UP:
             cameraPos += cameraSpeed * cameraFront;
             break;
@@ -668,13 +740,56 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
             break;
 
-            // FOV controls
-        case GLFW_KEY_KP_ADD:
+        // Camera Rotation
+        case GLFW_KEY_I: { // tilt up
+            pitch += ROTATE_SPEED;
+            if (pitch > 89.0f) pitch = 89.0f; // Safety cap to avoid gimbal lock
+
+            // Calculate new front direction immediately
+            direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+            direction.y = sin(glm::radians(pitch));
+            direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+            cameraFront = glm::normalize(direction);
+            break;
+        }
+
+        case GLFW_KEY_K: { //tilt down
+            pitch -= ROTATE_SPEED;
+            if (pitch < -89.0f) pitch = -89.0f; // Safety cap to avoid gimbal lock
+
+            // Calculate new front direction immediately
+            direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+            direction.y = sin(glm::radians(pitch));
+            direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+            cameraFront = glm::normalize(direction);
+            break;
+        }
+
+        // Rotate LEFT 
+        case GLFW_KEY_J: 
+            yaw -= ROTATE_SPEED; // Decrement yaw to turn left
+
+            direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+            direction.y = sin(glm::radians(pitch));
+            direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+            cameraFront = glm::normalize(direction);
+            break;
+        
+        // Rotate RIGHT 
+        case GLFW_KEY_L:
+            yaw += ROTATE_SPEED; // Increment yaw to turn right
+
+            direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+            direction.y = sin(glm::radians(pitch));
+            direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+            cameraFront = glm::normalize(direction);
+            break;
+           
+        // FOV controls
         case GLFW_KEY_EQUAL:
             fov -= 2.0f;
             if (fov < 10.0f) fov = 10.0f;
             break;
-        case GLFW_KEY_KP_SUBTRACT:
         case GLFW_KEY_MINUS:
             fov += 2.0f;
             if (fov > 120.0f) fov = 120.0f;
@@ -748,12 +863,16 @@ int main() {
 
     GLFWwindow* window = glfwCreateWindow(1200, 900, "Interactive Solar System Simulation", NULL, NULL);
     if (!window) { glfwTerminate(); return -1; }
-
     glfwMakeContextCurrent(window);
-    glfwSetKeyCallback(window, key_callback);
 
     if (glewInit() != GLEW_OK) return -1;
 
+    // Initialize shapes
+    initializeShapes();
+
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hides and traps cursor
+    glfwSetCursorPosCallback(window, mouse_callback);            // Registers the mouse function
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
     glLineWidth(2.0f);
@@ -762,6 +881,23 @@ int main() {
     unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     unsigned int program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    int success;
+    char infoLog[512];
+
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+
+    if (!success)
+    {
+        glGetProgramInfoLog(program, 512, NULL, infoLog);
+        cout << "PROGRAM LINK ERROR:\n" << infoLog << endl;
+    }
 
     // Planet Textures
     unsigned int sunTexture = loadTexture("sun.jpg");
@@ -774,15 +910,10 @@ int main() {
     unsigned int uranusTexture = loadTexture("uranus.jpg");
     unsigned int neptuneTexture = loadTexture("neptune.jpg");
 
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    // Initialize shapes
-    initializeShapes();
+    std::vector<unsigned int> planetTextures = {
+        sunTexture, mercuryTexture, venusTexture, earthTexture,
+        marsTexture, jupiterTexture, saturnTexture, uranusTexture, neptuneTexture
+    };
 
     // Set animation phases
     for (size_t i = 0; i < shapes.size(); ++i) {
@@ -803,6 +934,10 @@ int main() {
         updateRotationAnimation(deltaTime);
 
         displayInfo();
+
+        if (!shapes.empty()) {
+            lightPos = shapes[0].position; // Securely shadows the sun even when moving!
+        }
 
         // Clear screen
         glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
@@ -829,6 +964,14 @@ int main() {
         // Draw all shapes
         for (size_t i = 0; i < shapes.size(); ++i) {
             const auto& shape = shapes[i];
+
+            // Make the sun shadeless
+            if (i == 0) {
+                glUniform1i(glGetUniformLocation(program, "isSun"), 1);
+            }
+            else {
+                glUniform1i(glGetUniformLocation(program, "isSun"), 0);
+            }
 
             glActiveTexture(GL_TEXTURE0);
             // Here is where it selects the right texture for each planet
@@ -861,6 +1004,9 @@ int main() {
             }
             glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
 
+            // Tell the fragment shader to actively use the texture instead of solid colors
+            glUniform1i(glGetUniformLocation(program, "useTexture"), 1);
+
             glm::mat4 globalTransform = createTransform3D(shape);
             glm::mat4 localTransform = createLocalTransform3D(shape);
             glm::mat4 finalTransform;
@@ -874,13 +1020,13 @@ int main() {
             else {
                 finalTransform = globalTransform;
             }
-
             glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(finalTransform));
 
             // Calculate normal matrix
             glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(finalTransform)));
             glUniformMatrix3fv(glGetUniformLocation(program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
+            
             if (i == currentShape) {
                 glm::vec3 highlightColor = shape.color * 1.5f;
                 glUniform3f(glGetUniformLocation(program, "objectColor"),
