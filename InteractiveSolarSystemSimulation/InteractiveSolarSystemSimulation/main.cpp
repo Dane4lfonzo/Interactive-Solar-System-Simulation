@@ -135,6 +135,13 @@ struct Shape3D {
     glm::vec3 localScale;
 
     float animationPhase;
+
+    // Moon Properties
+    bool isMoon = false;
+    size_t parentPlanetIndex = 0;
+    float moonOrbitRadius = 0.0f;
+    float moonOrbitSpeed = 0.0f;
+
     ShapeType type;
 
     Shape3D() : VAO(0), VBO(0), EBO(0), position(0.0f), rotation(0.0f),
@@ -215,7 +222,7 @@ bool firstMouse = true;     // Detects mouse
 float lastX = 600.0f;       // Center X of 1200 width window
 float lastY = 450.0f;       // Center Y of 900 height window
 
-float cameraSpeed = 5.0f;
+float cameraSpeed = 3.0f;
 float fov = 45.0f;
 
 // Lighting
@@ -513,6 +520,45 @@ void initializeShapes() {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
+
+    struct MoonDef {
+        size_t parentIndex; // Which planet this moon belongs to
+        float orbitRadius;
+        float size;
+        float speed;
+    };
+
+    std::vector<MoonDef> moonDefinitions = {
+        {3, 1.5f, 0.15f, 2.0f},   // Earth: Moon
+        {4, 0.8f, 0.06f, 2.5f},   // Mars: Phobos
+        {4, 1.2f, 0.04f, 1.8f},   // Mars: Deimos
+        {5, 6.0f, 0.40f, 1.5f},   // Jupiter: Io
+        {5, 7.5f, 0.35f, 1.2f},   // Jupiter: Europa
+        {5, 9.0f, 0.50f, 0.9f},   // Jupiter: Ganymede
+        {5, 11.0f, 0.45f, 0.6f},  // Jupiter: Callisto
+        {6, 5.5f, 0.35f, 1.1f},   // Saturn: Titan
+        {7, 3.5f, 0.22f, 1.3f},   // Uranus: Titania
+        {8, 3.2f, 0.25f, 1.2f}    // Neptune: Triton
+    };
+
+    // Resize the shapes vector to hold 9 planets + our 10 new moons
+    size_t planetCount = shapes.size();
+    shapes.resize(planetCount + moonDefinitions.size());
+
+    for (size_t i = 0; i < moonDefinitions.size(); ++i) {
+        size_t moonIdx = planetCount + i;
+        const auto& def = moonDefinitions[i];
+
+        createSphere(shapes[moonIdx]);
+        setupShapeBuffers(shapes[moonIdx]);
+
+        shapes[moonIdx].isMoon = true;
+        shapes[moonIdx].parentPlanetIndex = def.parentIndex;
+        shapes[moonIdx].moonOrbitRadius = def.orbitRadius;
+        shapes[moonIdx].moonOrbitSpeed = def.speed;
+        shapes[moonIdx].scale = glm::vec3(def.size);
+        shapes[moonIdx].animationPhase = static_cast<float>(i) * (PI / 2.0f); // offset starting angles
+    }
 }
 
 // Animation functions
@@ -523,7 +569,7 @@ void updateOrbitAnimation(float deltaTime) {
         // Keep the Sun (index 0) locked at the origin
         shapes[0].position = glm::vec3(0.0f);
 
-        for (size_t i = 1; i < shapes.size(); ++i) {
+        for (size_t i = 1; i < 9; ++i) {
             float time = globalTime + shapes[i].animationPhase;
 
             float radius = 0.0f;
@@ -541,30 +587,53 @@ void updateOrbitAnimation(float deltaTime) {
             }
 
             // Apply perfect circular math on the XZ plane
-            shapes[i].position.x = radius * cos((time/4) * speed);
+            shapes[i].position.x = radius * cos((time / 4) * speed);
             shapes[i].position.y = 0.3f; // Flat placeholder Y offset
-            shapes[i].position.z = radius * sin((time/4) * speed);
-
-            // Axial rotation
-            // Planet Rotation speed
-            std::vector<float> rotationSpeeds = {
-             7.0f,   // Sun
-             10.0f,   // Mercury
-             -6.0f,   // Venus (retrograde)
-             30.0f,   // Earth
-             24.0f,   // Mars
-             70.0f,   // Jupiter
-             60.0f,   // Saturn
-             -40.0f,  // Uranus (retrograde-ish)
-             45.0f    // Neptune
-            };
-
-            for (size_t i = 0; i < shapes.size(); ++i) {
+            shapes[i].position.z = radius * sin((time / 4) * speed);
+        }
+        // Make moons
+        for (size_t i = 9; i < shapes.size(); ++i) {
+            if (shapes[i].isMoon) {
                 float time = globalTime + shapes[i].animationPhase;
-                // planet self rotation
-                shapes[i].rotation.y += rotationSpeeds[i] * deltaTime;
+                size_t parentIdx = shapes[i].parentPlanetIndex;
+
+                // Calculate position around the parent planet
+                float localX = shapes[i].moonOrbitRadius * cos(time * shapes[i].moonOrbitSpeed);
+                float localZ = shapes[i].moonOrbitRadius * sin(time * shapes[i].moonOrbitSpeed);
+
+                // Add the parent's current position to get absolute world position
+                shapes[i].position.x = shapes[parentIdx].position.x + localX;
+                shapes[i].position.y = shapes[parentIdx].position.y; // Keep them on the same plane
+                shapes[i].position.z = shapes[parentIdx].position.z + localZ;
             }
         }
+
+        // Axial rotation
+        // Planet Rotation speed
+        std::vector<float> rotationSpeeds = {
+            7.0f,   // Sun
+            10.0f,   // Mercury
+            -6.0f,   // Venus (retrograde)
+            30.0f,   // Earth
+            24.0f,   // Mars
+            70.0f,   // Jupiter
+            60.0f,   // Saturn
+            -40.0f,  // Uranus (retrograde-ish)
+            45.0f    // Neptune
+        };
+
+        // Rotate Planets
+        for (size_t i = 0; i < 9; ++i) {
+            float time = globalTime + shapes[i].animationPhase;
+            // planet self rotation
+            shapes[i].rotation.y += rotationSpeeds[i] * deltaTime;
+        }
+
+        // Rotate Moons 
+        for (size_t i = 9; i < shapes.size(); ++i) {
+            shapes[i].rotation.y += 50.0f * deltaTime;
+        }
+        
     }
 }
 
@@ -828,8 +897,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         switch (key) {
         case GLFW_KEY_TAB:
             if (action == GLFW_PRESS) {
-                currentShape = (currentShape + 1) % shapes.size();
-                currentCameraMode = TRACKING; 
+                // Keep the camera cycling strictly through the 9 main planets (0 to 8)
+                currentShape = (currentShape + 1) % 9;
+                currentCameraMode = TRACKING;
             }
             break;
 
@@ -1112,6 +1182,10 @@ int main() {
             }
             else if (i == 8) {
                 glBindTexture(GL_TEXTURE_2D, neptuneTexture);
+            }
+            else {
+                // FALLBACK FOR MOONS: Use the mercury texture as a placeholder moon rock texture
+                glBindTexture(GL_TEXTURE_2D, mercuryTexture);
             }
             glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
 
