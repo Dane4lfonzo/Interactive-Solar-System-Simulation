@@ -533,11 +533,14 @@ void initializeShapes() {
         {4, 0.8f, 0.06f, 2.5f},   // Mars: Phobos
         {4, 1.2f, 0.04f, 1.8f},   // Mars: Deimos
         {5, 6.0f, 0.40f, 1.5f},   // Jupiter: Io
-        {5, 7.5f, 0.35f, 1.2f},   // Jupiter: Europa
-        {5, 9.0f, 0.50f, 0.9f},   // Jupiter: Ganymede
+        {5, 9.0f, 0.60f, 0.9f},   // Jupiter: Ganymede
         {5, 11.0f, 0.45f, 0.6f},  // Jupiter: Callisto
         {6, 5.5f, 0.35f, 1.1f},   // Saturn: Titan
-        {7, 3.5f, 0.22f, 1.3f},   // Uranus: Titania
+        {6, 3.5f, 0.10f, 0.9f},   // Saturn: Rhea
+        {6, 1.3f, 0.04f, 0.6f},   // Saturn: Mimas
+        {7, 3.5f, 0.32f, 1.3f},   // Uranus: Titania
+        {7, 3.5f, 0.30f, 1.7f},   // Uranus: Oberon
+        {7, 3.0f, 0.15f, 1.0f},   // Uranus: Umbrial
         {8, 3.2f, 0.25f, 1.2f}    // Neptune: Triton
     };
 
