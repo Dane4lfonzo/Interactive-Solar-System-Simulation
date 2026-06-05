@@ -207,8 +207,6 @@ const int NUM_PARTICLES = 8000;
 vector<RingParticle> saturnRings;
 unsigned int ringVAO, ringVBO;
 
-enum TransformMode { GLOBAL_3D, LOCAL_3D, HIERARCHICAL_3D };
-TransformMode currentMode = GLOBAL_3D;
 
 // Camera variables
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
@@ -216,21 +214,22 @@ glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 direction;
 
-float yaw = -90.0f; // Initialized to -90.0f so it points straight down the -Z axis
-float pitch = 0.0f; // 0.0f means looking perfectly level at the horizon
+float yaw = -90.0f;     // Initialized to -90.0f so it points straight down the -Z axis
+float pitch = 0.0f;     // 0.0f means looking perfectly level at the horizon
 bool firstMouse = true;     // Detects mouse
 float lastX = 600.0f;       // Center X of 1200 width window
 float lastY = 450.0f;       // Center Y of 900 height window
 
 float cameraSpeed = 3.0f;
 float fov = 45.0f;
+bool mouseEnabled = true;
 
 // Lighting
 glm::vec3 lightPos = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
 const float MOVE_SPEED = 0.1f;
-const float ROTATE_SPEED = 1.0f;
+const float ROTATE_SPEED = 2.0f;
 const float SCALE_SPEED = 0.05f;
 
 // Utility functions
@@ -330,17 +329,6 @@ glm::mat4 createTransform3D(const Shape3D& shape) {
     return model;
 }
 
-glm::mat4 createLocalTransform3D(const Shape3D& shape) {
-    glm::mat4 localModel = glm::mat4(1.0f);
-
-    localModel = glm::translate(localModel, shape.localPosition);
-    localModel = glm::rotate(localModel, glm::radians(shape.localRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-    localModel = glm::rotate(localModel, glm::radians(shape.localRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-    localModel = glm::rotate(localModel, glm::radians(shape.localRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-    localModel = glm::scale(localModel, shape.localScale);
-
-    return localModel;
-}
 
 // Shape creation functions
 void createSphere(Shape3D& shape) {
@@ -805,20 +793,40 @@ void displayInfo() {
 #endif
 
     cout << "=== Interactive Solar System Simulation ===" << endl;
-    cout << "Current Shape: " << currentShape + 1 << "/" << shapes.size() << " (";
+    cout << "Current Shape: " << currentShape + 1 << "/9" << " (";
 
-    switch (shapes[currentShape].type) {
-    case SPHERE: cout << "Sphere"; break;
+    switch (currentShape) {
+    case (0): 
+        cout << "SUN";
+        break;
+    case (1): 
+        cout << "MERCURY";
+        break;
+    case (2):
+        cout << "VENUS";
+        break;
+    case (3):
+        cout << "EARTH";
+        break;
+    case (4):
+        cout << "MARS";
+        break;
+    case (5):
+        cout << "JUPITER";
+        break;
+    case (6):
+        cout << "SATURN";
+        break;
+    case (7):
+        cout << "URANUS";
+        break;
+    case (8):
+        cout << "NEPTUNE";
+        break;
     }
 
     cout << ")" << endl;
-    cout << "Transform Mode: ";
-
-    switch (currentMode) {
-    case GLOBAL_3D: cout << "GLOBAL"; break;
-    case LOCAL_3D: cout << "LOCAL"; break;
-    case HIERARCHICAL_3D: cout << "HIERARCHICAL"; break;
-    }
+    cout << "Transform Mode: GLOBAL";
 
     cout << endl;
 
@@ -829,9 +837,6 @@ void displayInfo() {
     cout << "Position: (" << shape.position.x << ", " << shape.position.y << ", " << shape.position.z << ")" << endl;
     cout << "Rotation: (" << shape.rotation.x << "°, " << shape.rotation.y << "°, " << shape.rotation.z << "°)" << endl;
     cout << "Scale: (" << shape.scale.x << ", " << shape.scale.y << ", " << shape.scale.z << ")" << endl;
-    cout << "Local Position: (" << shape.localPosition.x << ", " << shape.localPosition.y << ", " << shape.localPosition.z << ")" << endl;
-    cout << "Local Rotation: (" << shape.localRotation.x << "°, " << shape.localRotation.y << "°, " << shape.localRotation.z << "°)" << endl;
-    cout << "Local Scale: (" << shape.localScale.x << ", " << shape.localScale.y << ", " << shape.localScale.z << ")" << endl;
 
     cout << "\n--- CAMERA ---" << endl;
     cout << "Position: (" << cameraPos.x << ", " << cameraPos.y << ", " << cameraPos.z << ")" << endl;
@@ -845,12 +850,12 @@ void displayInfo() {
     cout << "Origin: " << (showOrigin ? "VISIBLE" : "HIDDEN") << endl;
 
     cout << "\n--- CONTROLS ---" << endl;
-    cout << "TAB: Lock Camera to planets | Q: Enable FreeCam " << endl;
-    cout << "WASD: Move Camera | RF: Move Y | QE: Rotate Y | ZC: Rotate X | VB: Rotate Z" << endl;
-    cout << "TY: Scale | +/-: FOV" << endl;
+    cout << "P: Toggle Mouse | TAB: Lock Camera to planets | Q: Enable FreeCam " << endl;
+    cout << "WASD: Move Camera | JL: Rotate Camera X | IK: Rotate Camera Y" << endl;
+    cout << "+/-: FOV" << endl;
     cout << "SPACE: Resume/Pause Animation" << endl;
-    cout << "G: Toggle grid | O: Toggle origin" << endl;
-    cout << "0: Reset current shape | ESC: Exit" << endl;
+    cout << "G: Toggle grid" << endl;
+    cout << "ESC: Exit" << endl;
     cout << "=======================================================" << endl;
 }
 
@@ -858,6 +863,9 @@ void displayInfo() {
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
+
+    if (mouseEnabled)
+        return;
 
     if (firstMouse) {
         lastX = xpos;
@@ -892,12 +900,35 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     cameraFront = glm::normalize(direction);
 }
 
+void toggleMouse(GLFWwindow* window)
+{
+    mouseEnabled = !mouseEnabled;
+
+    if (mouseEnabled)
+    {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+    else
+    {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+        // Prevent camera jump
+        firstMouse = true;
+    }
+}
+
 // Input handling
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS || action == GLFW_REPEAT) {
         Shape3D& shape = shapes[currentShape];
 
         switch (key) {
+        case GLFW_KEY_P:
+            if (action == GLFW_PRESS) {
+                toggleMouse(window);
+            }
+            break;
+
         case GLFW_KEY_TAB:
             if (action == GLFW_PRESS) {
                 // Keep the camera cycling strictly through the 9 main planets (0 to 8)
@@ -909,12 +940,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_Q:
             if (action == GLFW_PRESS) {
                 currentCameraMode = FREECAM;
-            }
-            break;
-
-        case GLFW_KEY_M:
-            if (action == GLFW_PRESS) {
-                currentMode = static_cast<TransformMode>((currentMode + 1) % 3);
             }
             break;
 
@@ -1012,6 +1037,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 }
 
 void updateCamera(float deltaTime) {
+    if (mouseEnabled)
+        return;
+
     if (currentCameraMode == TRACKING) {
         const Shape3D& targetPlanet = shapes[currentShape];
 
@@ -1053,8 +1081,11 @@ int main() {
     setupSkybox();
 
     glfwSetKeyCallback(window, key_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hides and traps cursor
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hides and traps cursor
     glfwSetCursorPosCallback(window, mouse_callback);            // Registers the mouse function
+  
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
     glLineWidth(2.0f);
@@ -1198,18 +1229,8 @@ int main() {
             drawSaturnRings(program);
 
             glm::mat4 globalTransform = createTransform3D(shape);
-            glm::mat4 localTransform = createLocalTransform3D(shape);
-            glm::mat4 finalTransform;
-
-            if (currentMode == HIERARCHICAL_3D) {
-                finalTransform = globalTransform * localTransform;
-            }
-            else if (currentMode == LOCAL_3D && i == currentShape) {
-                finalTransform = localTransform;
-            }
-            else {
-                finalTransform = globalTransform;
-            }
+            glm::mat4 finalTransform = globalTransform;
+            
             glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(finalTransform));
 
             // Calculate normal matrix
