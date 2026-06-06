@@ -288,7 +288,6 @@ unsigned int loadCubemap(vector<string> faces) {
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
     int width, height, nrComponents;
-    // Cubemaps generally should NOT be flipped vertically like your sphere textures
     stbi_set_flip_vertically_on_load(false);
 
     for (unsigned int i = 0; i < faces.size(); i++) {
@@ -888,7 +887,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     yaw += xoffset;
     pitch += yoffset;
 
-    // Safety clamp so your screen doesn't flip upside down
+    // Safety clamp so the screen doesn't flip upside down
     if (pitch > 89.0f)  pitch = 89.0f;
     if (pitch < -89.0f) pitch = -89.0f;
 
@@ -1043,20 +1042,18 @@ void updateCamera(float deltaTime) {
     if (currentCameraMode == TRACKING) {
         const Shape3D& targetPlanet = shapes[currentShape];
 
-        // 1. Define how far back you want the camera to sit from the planet
-        // You can make this larger for big planets like Jupiter if needed!
         float camDistance = 8.0f;
 
-        // 2. Calculate a dynamic offset vector using the mouse yaw and pitch angles
+        // Calculate dynamic offset vector using the mouse yaw and pitch angles
         glm::vec3 offset;
         offset.x = camDistance * cos(glm::radians(pitch)) * cos(glm::radians(yaw));
         offset.y = camDistance * sin(glm::radians(pitch));
         offset.z = camDistance * cos(glm::radians(pitch)) * sin(glm::radians(yaw));
 
-        // 3. Position the camera relative to the planet's moving coordinates
+        // Position the camera relative to the planet's moving coordinates
         cameraPos = targetPlanet.position + offset;
 
-        // 4. Force the camera to look straight back at the center of the planet
+        // Forces the camera to look straight back at the center of the planet
         cameraFront = glm::normalize(targetPlanet.position - cameraPos);
     }
 }
