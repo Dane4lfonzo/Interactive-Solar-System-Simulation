@@ -171,6 +171,7 @@ glm::mat4 createLocalTransform3D(const Shape3D& shape);
 
 // Global variables
 vector<Shape3D> shapes;
+Shape3D spaceship;
 int currentShape = 0;
 int numOfSpheres = 9;
 bool showGrid = true;
@@ -180,6 +181,7 @@ float globalTime = 0.0f;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int skyboxTexture;
 unsigned int skyboxShader;
+unsigned int spaceshipTexture;
 float skyboxVertices[] = {
     // Positions          
     -1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f,   1.0f, -1.0f, -1.0f,
@@ -496,61 +498,6 @@ void initializeShapes() {
         setupShapeBuffers(shapes[i]);
     }
 
-    //// Sun
-    //createSphere(shapes[0]);
-    //shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);
-    //shapes[0].scale = glm::vec3(26.16f); // Scaled for Sun
-    //setupShapeBuffers(shapes[0]);
-
-    //// Mercury
-    //createSphere(shapes[1]);
-    //shapes[1].position = glm::vec3(32.0f, 0.3f, 0.0f);
-    //shapes[1].scale = glm::vec3(0.2f); // Scaled for Mercury
-    //setupShapeBuffers(shapes[1]);
-
-    //// Venus
-    //createSphere(shapes[2]);
-    //shapes[2].position = glm::vec3(40.0f, 0.3f, 0.0f);
-    //shapes[2].scale = glm::vec3(0.575f); // Scaled for Venus
-    //setupShapeBuffers(shapes[2]);
-
-    //// Earth
-    //createSphere(shapes[3]);
-    //shapes[3].position = glm::vec3(50.0f, 0.3f, 0.0f);
-    //shapes[3].scale = glm::vec3(0.6f); // Scaled for Earth
-    //setupShapeBuffers(shapes[3]);
-
-    //// Mars
-    //createSphere(shapes[4]);
-    //shapes[4].position = glm::vec3(60.0f, 0.3f, 0.0f);
-    //shapes[4].scale = glm::vec3(0.3f); // Scaled for Mars
-    //setupShapeBuffers(shapes[4]);
-
-    //// Jupiter
-    //createSphere(shapes[5]);
-    //shapes[5].position = glm::vec3(76.0f, 0.3f, 0.0f);
-    //shapes[5].scale = glm::vec3(4.8f); // Scaled for Jupiter
-    //setupShapeBuffers(shapes[5]);
-
-    //// Saturn
-    //createSphere(shapes[6]);
-    //shapes[6].position = glm::vec3(96.0f, 0.3f, 0.0f);
-    //shapes[6].scale = glm::vec3(4.25f); // Scaled for Saturn
-    //setupShapeBuffers(shapes[6]);
-
-    //// Uranus
-    //createSphere(shapes[7]);
-    //shapes[7].position = glm::vec3(116.0f, 0.3f, 0.0f);
-    //shapes[7].scale = glm::vec3(2.4f); // Scaled for Uranus
-    //setupShapeBuffers(shapes[7]);
-
-    //// Neptune
-    //createSphere(shapes[8]);
-    //shapes[8].position = glm::vec3(136.0f, 0.3f, 0.0f);
-    //shapes[8].scale = glm::vec3(2.3f); // Scaled for Neptune
-    //setupShapeBuffers(shapes[8]);
-
-
     saturnRings.resize(NUM_PARTICLES);
     float innerRadius = 5.5f;
     float outerRadius = 10.0f;
@@ -621,6 +568,21 @@ void initializeShapes() {
         shapes[moonIdx].moonOrbitSpeed = def.speed;
         shapes[moonIdx].scale = glm::vec3(def.size);
         shapes[moonIdx].animationPhase = static_cast<float>(i) * (PI / 2.0f); // offset starting angles
+    }
+
+    const string spaceshipPath = "spaceship.obj";
+    if (loadOBJ(spaceship, spaceshipPath)) {
+        setupShapeBuffers(spaceship);
+
+        // Spawn next to Earth
+        spaceship.position = glm::vec3(50.0f, 0.3f, 2.0f);
+        spaceship.scale = glm::vec3(0.05f);
+        spaceship.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+
+        // Texture Mapping
+        stbi_set_flip_vertically_on_load(false);
+        spaceshipTexture = loadTexture("Material.001_Base_color.jpg");
+        stbi_set_flip_vertically_on_load(true); // Turning vertical flip on/off specifically for spaceship textures so it doesnt break the planet texture
     }
 }
 
@@ -1322,6 +1284,28 @@ int main() {
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(shape.indices.size()), GL_UNSIGNED_INT, 0);
         }
 
+        if (spaceship.VAO != 0) {
+            glUseProgram(program); // Your main shader program
+
+            // 1. Bind the spaceship texture to Texture Unit 0
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, spaceshipTexture);
+            glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0); // Tells sampler to use unit 0
+            glUniform1i(glGetUniformLocation(program, "useTexture"), true);   // Turn on texture mapping!
+
+            // 2. Transformations
+            glm::mat4 spaceshipModelMatrix = createTransform3D(spaceship);
+            glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(spaceshipModelMatrix));
+
+            glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(spaceshipModelMatrix)));
+            glUniformMatrix3fv(glGetUniformLocation(program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+            glUniform1i(glGetUniformLocation(program, "isSun"), false);
+
+            // 3. Draw
+            glBindVertexArray(spaceship.VAO);
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(spaceship.indices.size()), GL_UNSIGNED_INT, 0);
+        }
 
         glDepthFunc(GL_LEQUAL);
 
