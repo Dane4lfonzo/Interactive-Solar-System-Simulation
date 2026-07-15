@@ -15,6 +15,10 @@ using namespace std;
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <map>
 #include "stb_image.h"
 
 const float PI = 3.14159265358979323846f;
@@ -152,7 +156,7 @@ struct Shape3D {
 };
 
 // Forward declarations
-void createSphere(Shape3D& shape);
+bool loadOBJ(Shape3D& shape, const string& path);
 void setupShapeBuffers(Shape3D& shape);
 void initializeShapes();
 void setupSkybox();
@@ -168,6 +172,7 @@ glm::mat4 createLocalTransform3D(const Shape3D& shape);
 // Global variables
 vector<Shape3D> shapes;
 int currentShape = 0;
+int numOfSpheres = 9;
 bool showGrid = true;
 bool showOrigin = true;
 bool orbitAnimation = false;
@@ -330,63 +335,110 @@ glm::mat4 createTransform3D(const Shape3D& shape) {
 
 
 // Shape creation functions
-void createSphere(Shape3D& shape) {
+bool loadOBJ(Shape3D& shape, const string& path) {
+    ifstream file(path);
+    if (!file.is_open()) {
+        cout << "Failed to open OBJ file: " << path << endl;
+        return false;
+    }
+
+    vector<glm::vec3> temp_positions;
+    vector<glm::vec3> temp_normals;
+    vector<glm::vec2> temp_uvs;
+
+    // To match unique combinations of v/vt/vn positions to an unified index tracking system
+    map<string, unsigned int> uniqueVertices;
+
     shape.vertices.clear();
     shape.indices.clear();
 
-    const int stacks = 16;
-    const int slices = 32;
-    const float radius = 0.5f;
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        string type;
+        ss >> type;
 
-    // Generate vertices
-    for (int i = 0; i <= stacks; ++i) {
-        float stackAngle = PI / 2 - i * PI / stacks;
-        float xz = radius * cos(stackAngle);
-        float y = radius * sin(stackAngle);
-
-        for (int j = 0; j <= slices; ++j) {
-            float sectorAngle = j * 2 * PI / slices;
-
-            float x = xz * cos(sectorAngle);
-            float z = xz * sin(sectorAngle);
-
-            shape.vertices.push_back(x);
-            shape.vertices.push_back(y);
-            shape.vertices.push_back(z);
-
-            shape.vertices.push_back(x / radius);
-            shape.vertices.push_back(y / radius);
-            shape.vertices.push_back(z / radius);
-
-            // Texture Coordinates (U, V)
-            float u = static_cast<float>(j) / slices;
-            float v = static_cast<float>(i) / stacks;
-            shape.vertices.push_back(u);
-            shape.vertices.push_back(v);
+        if (type == "v") {
+            glm::vec3 pos;
+            ss >> pos.x >> pos.y >> pos.z;
+            temp_positions.push_back(pos);
         }
-    }
+        else if (type == "vn") {
+            glm::vec3 norm;
+            ss >> norm.x >> norm.y >> norm.z;
+            temp_normals.push_back(norm);
+        }
+        else if (type == "vt") {
+            glm::vec2 uv;
+            ss >> uv.x >> uv.y;
+            temp_uvs.push_back(uv);
+        }
+        else if (type == "f") {
+            std::vector<unsigned int> faceIndices;
+            string vertexData;
 
-    // Generate indices
-    for (int i = 0; i < stacks; ++i) {
-        int k1 = i * (slices + 1);
-        int k2 = k1 + slices + 1;
+            // Read all available vertex tokens on this face line (handles triangles or quads)
+            while (ss >> vertexData) {
+                if (uniqueVertices.count(vertexData) == 0) {
+                    stringstream vss(vertexData);
+                    string vIdxStr, vtIdxStr, vnIdxStr;
 
-        for (int j = 0; j < slices; ++j, ++k1, ++k2) {
-            if (i != 0) {
-                shape.indices.push_back(static_cast<unsigned int>(k1));
-                shape.indices.push_back(static_cast<unsigned int>(k2));
-                shape.indices.push_back(static_cast<unsigned int>(k1 + 1));
+                    getline(vss, vIdxStr, '/');
+                    getline(vss, vtIdxStr, '/');
+                    getline(vss, vnIdxStr, '/');
+
+                    int vIdx = !vIdxStr.empty() ? stoi(vIdxStr) - 1 : -1;
+                    int vtIdx = !vtIdxStr.empty() ? stoi(vtIdxStr) - 1 : -1;
+                    int vnIdx = !vnIdxStr.empty() ? stoi(vnIdxStr) - 1 : -1;
+
+                    unsigned int newIndex = static_cast<unsigned int>(shape.vertices.size() / 8);
+
+                    // Push position
+                    if (vIdx >= 0 && vIdx < temp_positions.size()) {
+                        shape.vertices.push_back(temp_positions[vIdx].x);
+                        shape.vertices.push_back(temp_positions[vIdx].y);
+                        shape.vertices.push_back(temp_positions[vIdx].z);
+                    }
+                    else {
+                        shape.vertices.insert(shape.vertices.end(), { 0.0f, 0.0f, 0.0f });
+                    }
+
+                    // Push normal
+                    if (vnIdx >= 0 && vnIdx < temp_normals.size()) {
+                        shape.vertices.push_back(temp_normals[vnIdx].x);
+                        shape.vertices.push_back(temp_normals[vnIdx].y);
+                        shape.vertices.push_back(temp_normals[vnIdx].z);
+                    }
+                    else {
+                        shape.vertices.insert(shape.vertices.end(), { 0.0f, 0.0f, 1.0f });
+                    }
+
+                    // Push UV
+                    if (vtIdx >= 0 && vtIdx < temp_uvs.size()) {
+                        shape.vertices.push_back(temp_uvs[vtIdx].x);
+                        shape.vertices.push_back(temp_uvs[vtIdx].y);
+                    }
+                    else {
+                        shape.vertices.insert(shape.vertices.end(), { 0.0f, 0.0f });
+                    }
+
+                    uniqueVertices[vertexData] = newIndex;
+                }
+                faceIndices.push_back(uniqueVertices[vertexData]);
             }
 
-            if (i != (stacks - 1)) {
-                shape.indices.push_back(static_cast<unsigned int>(k1 + 1));
-                shape.indices.push_back(static_cast<unsigned int>(k2));
-                shape.indices.push_back(static_cast<unsigned int>(k2 + 1));
+            // Triangulate the face data
+            // If it's a triangle (3 indices): outputs 0, 1, 2
+            // If it's a quad (4 indices): outputs 0, 1, 2 AND 0, 2, 3
+            for (size_t i = 1; i < faceIndices.size() - 1; ++i) {
+                shape.indices.push_back(faceIndices[0]);
+                shape.indices.push_back(faceIndices[i]);
+                shape.indices.push_back(faceIndices[i + 1]);
             }
         }
     }
-
     shape.type = SPHERE;
+    return true;
 }
 
 // OpenGL buffer setup
@@ -421,61 +473,82 @@ void setupShapeBuffers(Shape3D& shape) {
 // Initialize all shapes (This is where the planets can be modified)
 void initializeShapes() {
     shapes.clear();
-    shapes.resize(9);
+    shapes.resize(numOfSpheres);
 
-    // Sun
-    createSphere(shapes[0]);
-    shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);
-    shapes[0].scale = glm::vec3(26.16f); // Scaled for Sun
-    setupShapeBuffers(shapes[0]);
+    const string objPath = "sphere.obj";
 
-    // Mercury
-    createSphere(shapes[1]);
-    shapes[1].position = glm::vec3(32.0f, 0.3f, 0.0f);
-    shapes[1].scale = glm::vec3(0.2f); // Scaled for Mercury
-    setupShapeBuffers(shapes[1]);
+    for (size_t i = 0; i < numOfSpheres; ++i) {
+        loadOBJ(shapes[i], objPath);
+    }
 
-    // Venus
-    createSphere(shapes[2]);
-    shapes[2].position = glm::vec3(40.0f, 0.3f, 0.0f);
-    shapes[2].scale = glm::vec3(0.575f); // Scaled for Venus
-    setupShapeBuffers(shapes[2]);
+    // Positions & scales for planets
+    shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
+    shapes[1].position = glm::vec3(32.0f, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
+    shapes[2].position = glm::vec3(40.0f, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
+    shapes[3].position = glm::vec3(50.0f, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
+    shapes[4].position = glm::vec3(60.0f, 0.3f, 0.0f);   shapes[4].scale = glm::vec3(0.3f);   // Mars
+    shapes[5].position = glm::vec3(76.0f, 0.3f, 0.0f);   shapes[5].scale = glm::vec3(4.8f);   // Jupiter
+    shapes[6].position = glm::vec3(96.0f, 0.3f, 0.0f);   shapes[6].scale = glm::vec3(4.25f);  // Saturn
+    shapes[7].position = glm::vec3(116.0f, 0.3f, 0.0f);  shapes[7].scale = glm::vec3(2.4f);   // Uranus
+    shapes[8].position = glm::vec3(136.0f, 0.3f, 0.0f);  shapes[8].scale = glm::vec3(2.3f);   // Neptune
 
-    // Earth
-    createSphere(shapes[3]);
-    shapes[3].position = glm::vec3(50.0f, 0.3f, 0.0f);
-    shapes[3].scale = glm::vec3(0.6f); // Scaled for Earth
-    setupShapeBuffers(shapes[3]);
+    for (size_t i = 0; i < numOfSpheres; ++i) {
+        setupShapeBuffers(shapes[i]);
+    }
 
-    // Mars
-    createSphere(shapes[4]);
-    shapes[4].position = glm::vec3(60.0f, 0.3f, 0.0f);
-    shapes[4].scale = glm::vec3(0.3f); // Scaled for Mars
-    setupShapeBuffers(shapes[4]);
+    //// Sun
+    //createSphere(shapes[0]);
+    //shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);
+    //shapes[0].scale = glm::vec3(26.16f); // Scaled for Sun
+    //setupShapeBuffers(shapes[0]);
 
-    // Jupiter
-    createSphere(shapes[5]);
-    shapes[5].position = glm::vec3(76.0f, 0.3f, 0.0f);
-    shapes[5].scale = glm::vec3(4.8f); // Scaled for Jupiter
-    setupShapeBuffers(shapes[5]);
+    //// Mercury
+    //createSphere(shapes[1]);
+    //shapes[1].position = glm::vec3(32.0f, 0.3f, 0.0f);
+    //shapes[1].scale = glm::vec3(0.2f); // Scaled for Mercury
+    //setupShapeBuffers(shapes[1]);
 
-    // Saturn
-    createSphere(shapes[6]);
-    shapes[6].position = glm::vec3(96.0f, 0.3f, 0.0f);
-    shapes[6].scale = glm::vec3(4.25f); // Scaled for Saturn
-    setupShapeBuffers(shapes[6]);
+    //// Venus
+    //createSphere(shapes[2]);
+    //shapes[2].position = glm::vec3(40.0f, 0.3f, 0.0f);
+    //shapes[2].scale = glm::vec3(0.575f); // Scaled for Venus
+    //setupShapeBuffers(shapes[2]);
 
-    // Uranus
-    createSphere(shapes[7]);
-    shapes[7].position = glm::vec3(116.0f, 0.3f, 0.0f);
-    shapes[7].scale = glm::vec3(2.4f); // Scaled for Uranus
-    setupShapeBuffers(shapes[7]);
+    //// Earth
+    //createSphere(shapes[3]);
+    //shapes[3].position = glm::vec3(50.0f, 0.3f, 0.0f);
+    //shapes[3].scale = glm::vec3(0.6f); // Scaled for Earth
+    //setupShapeBuffers(shapes[3]);
 
-    // Neptune
-    createSphere(shapes[8]);
-    shapes[8].position = glm::vec3(136.0f, 0.3f, 0.0f);
-    shapes[8].scale = glm::vec3(2.3f); // Scaled for Neptune
-    setupShapeBuffers(shapes[8]);
+    //// Mars
+    //createSphere(shapes[4]);
+    //shapes[4].position = glm::vec3(60.0f, 0.3f, 0.0f);
+    //shapes[4].scale = glm::vec3(0.3f); // Scaled for Mars
+    //setupShapeBuffers(shapes[4]);
+
+    //// Jupiter
+    //createSphere(shapes[5]);
+    //shapes[5].position = glm::vec3(76.0f, 0.3f, 0.0f);
+    //shapes[5].scale = glm::vec3(4.8f); // Scaled for Jupiter
+    //setupShapeBuffers(shapes[5]);
+
+    //// Saturn
+    //createSphere(shapes[6]);
+    //shapes[6].position = glm::vec3(96.0f, 0.3f, 0.0f);
+    //shapes[6].scale = glm::vec3(4.25f); // Scaled for Saturn
+    //setupShapeBuffers(shapes[6]);
+
+    //// Uranus
+    //createSphere(shapes[7]);
+    //shapes[7].position = glm::vec3(116.0f, 0.3f, 0.0f);
+    //shapes[7].scale = glm::vec3(2.4f); // Scaled for Uranus
+    //setupShapeBuffers(shapes[7]);
+
+    //// Neptune
+    //createSphere(shapes[8]);
+    //shapes[8].position = glm::vec3(136.0f, 0.3f, 0.0f);
+    //shapes[8].scale = glm::vec3(2.3f); // Scaled for Neptune
+    //setupShapeBuffers(shapes[8]);
 
 
     saturnRings.resize(NUM_PARTICLES);
@@ -539,7 +612,7 @@ void initializeShapes() {
         size_t moonIdx = planetCount + i;
         const auto& def = moonDefinitions[i];
 
-        createSphere(shapes[moonIdx]);
+        loadOBJ(shapes[moonIdx], objPath);
         setupShapeBuffers(shapes[moonIdx]);
 
         shapes[moonIdx].isMoon = true;
