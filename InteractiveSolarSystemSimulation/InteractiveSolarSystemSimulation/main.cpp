@@ -117,7 +117,7 @@ const char* skyboxFragmentShaderSource = "#version 330 core\n"
 // Shape types
 enum ShapeType { SPHERE };
 
-enum CameraMode { FREECAM, TRACKING };
+enum CameraMode { FREECAM, TRACKING, SPACESHIP_DRIVE };
 CameraMode currentCameraMode = FREECAM;
 glm::vec3 trackingOffset = glm::vec3(0.0f, 5.0f, 10.0f);
 
@@ -220,6 +220,7 @@ glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 direction;
+glm::vec3 spaceshipCamera = glm::vec3(0.0f, 0.0f, -1.0f);
 
 float yaw = -90.0f;     // Initialized to -90.0f so it points straight down the -Z axis
 float pitch = 0.0f;     // 0.0f means looking perfectly level at the horizon
@@ -228,6 +229,7 @@ float lastX = 600.0f;       // Center X of 1200 width window
 float lastY = 450.0f;       // Center Y of 900 height window
 
 float cameraSpeed = 3.0f;
+float spaceshipSpeed = 5.0f;
 float fov = 45.0f;
 bool mouseEnabled = true;
 
@@ -485,14 +487,14 @@ void initializeShapes() {
 
     // Positions & scales for planets
     shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
-    shapes[1].position = glm::vec3(32.0f, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
-    shapes[2].position = glm::vec3(40.0f, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
-    shapes[3].position = glm::vec3(50.0f, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
-    shapes[4].position = glm::vec3(60.0f, 0.3f, 0.0f);   shapes[4].scale = glm::vec3(0.3f);   // Mars
-    shapes[5].position = glm::vec3(76.0f, 0.3f, 0.0f);   shapes[5].scale = glm::vec3(4.8f);   // Jupiter
-    shapes[6].position = glm::vec3(96.0f, 0.3f, 0.0f);   shapes[6].scale = glm::vec3(4.25f);  // Saturn
-    shapes[7].position = glm::vec3(116.0f, 0.3f, 0.0f);  shapes[7].scale = glm::vec3(2.4f);   // Uranus
-    shapes[8].position = glm::vec3(136.0f, 0.3f, 0.0f);  shapes[8].scale = glm::vec3(2.3f);   // Neptune
+    shapes[1].position = glm::vec3(82.0f, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
+    shapes[2].position = glm::vec3(90.0f, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
+    shapes[3].position = glm::vec3(100.0f, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
+    shapes[4].position = glm::vec3(110.0f, 0.3f, 0.0f);   shapes[4].scale = glm::vec3(0.3f);   // Mars
+    shapes[5].position = glm::vec3(126.0f, 0.3f, 0.0f);   shapes[5].scale = glm::vec3(4.8f);   // Jupiter
+    shapes[6].position = glm::vec3(166.0f, 0.3f, 0.0f);   shapes[6].scale = glm::vec3(4.25f);  // Saturn
+    shapes[7].position = glm::vec3(206.0f, 0.3f, 0.0f);  shapes[7].scale = glm::vec3(2.4f);   // Uranus
+    shapes[8].position = glm::vec3(226.0f, 0.3f, 0.0f);  shapes[8].scale = glm::vec3(2.3f);   // Neptune
 
     for (size_t i = 0; i < numOfSpheres; ++i) {
         setupShapeBuffers(shapes[i]);
@@ -601,14 +603,14 @@ void updateOrbitAnimation(float deltaTime) {
             float speed = 1.0f;
 
             switch (i) {
-            case 1: radius = 32.0f; speed = 1.20f; break;  // Mercury (Fastest)
-            case 2: radius = 40.0f; speed = 0.90f; break;  // Venus
-            case 3: radius = 50.0f; speed = 0.75f; break;  // Earth
-            case 4: radius = 60.0f; speed = 0.60f; break;  // Mars
-            case 5: radius = 76.0f; speed = 0.40f; break;  // Jupiter
-            case 6: radius = 96.0f; speed = 0.25f; break;  // Saturn
-            case 7: radius = 116.0f; speed = 0.15f; break;  // Uranus
-            case 8: radius = 136.0f; speed = 0.08f; break;  // Neptune (Slowest)
+            case 1: radius = 82.0f; speed = 1.20f; break;  // Mercury (Fastest)
+            case 2: radius = 90.0f; speed = 0.90f; break;  // Venus
+            case 3: radius = 100.0f; speed = 0.75f; break;  // Earth
+            case 4: radius = 110.0f; speed = 0.60f; break;  // Mars
+            case 5: radius = 126.0f; speed = 0.40f; break;  // Jupiter
+            case 6: radius = 166.0f; speed = 0.25f; break;  // Saturn
+            case 7: radius = 206.0f; speed = 0.15f; break;  // Uranus
+            case 8: radius = 226.0f; speed = 0.08f; break;  // Neptune (Slowest)
             }
 
             // Apply perfect circular math on the XZ plane
@@ -971,6 +973,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             }
             break;
 
+        case GLFW_KEY_0:
+            if (action == GLFW_PRESS) {
+                currentCameraMode = SPACESHIP_DRIVE;
+            }
+            break;
+
         case GLFW_KEY_Q:
             if (action == GLFW_PRESS) {
                 currentCameraMode = FREECAM;
@@ -978,20 +986,27 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             break;
 
         // Camera controls
-        if (currentCameraMode == FREECAM) {
             case GLFW_KEY_W:
-                cameraPos += cameraSpeed * cameraFront;
+                if (currentCameraMode == FREECAM) {
+                    cameraPos += cameraSpeed * cameraFront;
+                }
                 break;
             case GLFW_KEY_S:
-                cameraPos -= cameraSpeed * cameraFront;
+                if (currentCameraMode == FREECAM) {
+                    cameraPos -= cameraSpeed * cameraFront;
+                }
                 break;
             case GLFW_KEY_A:
-                cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+                if (currentCameraMode == FREECAM) {
+                    cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+                }
                 break;
             case GLFW_KEY_D:
-                cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+                if (currentCameraMode == FREECAM) {
+                    cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+                }
                 break;
-        }
+        
 
             // Camera Rotation
         case GLFW_KEY_I: { // tilt up
@@ -1040,12 +1055,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
             // FOV controls
         case GLFW_KEY_EQUAL:
-            fov -= 2.0f;
-            if (fov < 10.0f) fov = 10.0f;
+            if (currentCameraMode != SPACESHIP_DRIVE) {
+                fov -= 2.0f;
+                if (fov < 10.0f) fov = 10.0f;
+            }
             break;
         case GLFW_KEY_MINUS:
-            fov += 2.0f;
-            if (fov > 120.0f) fov = 120.0f;
+            if (currentCameraMode != SPACESHIP_DRIVE) {
+                fov += 2.0f;
+                if (fov > 120.0f) fov = 120.0f;
+            }
             break;
 
             // Animation controls
@@ -1068,6 +1087,54 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             break;
         }
     }
+}
+
+void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
+    if (currentCameraMode != SPACESHIP_DRIVE) return;
+
+    // 1. Shift for Speed Boost
+    float currentSpeed = spaceshipSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
+        currentSpeed *= 3.0f;
+    }
+
+    // 2. A and D rotate the physical spaceship model structure left and right
+    float spaceshipRotationSpeed = 60.0f;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        spaceship.rotation.y += spaceshipRotationSpeed * deltaTime;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        spaceship.rotation.y -= spaceshipRotationSpeed * deltaTime;
+    }
+
+    // 3. Update the direction vector using the updated ship rotation angle
+    float yawRadians = glm::radians(spaceship.rotation.y - 90.0f);
+    spaceshipCamera.x = std::cos(-yawRadians);
+    spaceshipCamera.z = std::sin(-yawRadians);
+    spaceshipCamera = glm::normalize(spaceshipCamera);
+
+    // 4. W and S move along that vector path
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        spaceship.position += spaceshipCamera * currentSpeed * deltaTime;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        spaceship.position -= spaceshipCamera * currentSpeed * deltaTime;
+    }
+
+    // 5. Ascend (=) / Descend (-) tracking
+    if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) {
+        spaceship.position.y += currentSpeed * deltaTime;
+    }
+    if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) {
+        spaceship.position.y -= currentSpeed * deltaTime;
+    }
+
+    // 6. Camera Offset - Position locks behind, cameraFront is mapped exactly how you wanted
+    glm::vec3 cameraBehindOffset = -spaceshipCamera * 4.0f;
+    cameraBehindOffset.y = 1.5f;
+
+    cameraPos = spaceship.position + cameraBehindOffset;
+    cameraFront = glm::normalize(spaceship.position - cameraPos);
 }
 
 void updateCamera(float deltaTime) {
@@ -1172,6 +1239,9 @@ int main() {
         float currentFrame = static_cast<float>(glfwGetTime());
         float deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        // Spaceship control input
+        processSpaceshipInput(window, deltaTime);
 
         // Update animations
         updateOrbitAnimation(deltaTime);
@@ -1286,6 +1356,7 @@ int main() {
 
         if (spaceship.VAO != 0) {
             glUseProgram(program); // Your main shader program
+            glBindVertexArray(spaceship.VAO);
 
             // 1. Bind the spaceship texture to Texture Unit 0
             glActiveTexture(GL_TEXTURE0);
