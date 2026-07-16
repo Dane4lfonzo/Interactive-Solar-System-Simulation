@@ -182,6 +182,18 @@ unsigned int skyboxVAO, skyboxVBO;
 unsigned int skyboxTexture;
 unsigned int skyboxShader;
 unsigned int spaceshipTexture;
+
+// Planet Position Global Variables (mainly x-axis)
+float MercuryPosX = 82.0f;
+float VenusPosX = 90.0f;
+float EarthPosX = 100.0f;
+float MarsPosX = 110.0f;
+float JupiterPosX = 126.0f;
+float SaturnPosX = 166.0f;
+float UranusPosX = 206.0f;
+float NeptunePosX = 226.0f;
+
+
 float skyboxVertices[] = {
     // Positions          
     -1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f,   1.0f, -1.0f, -1.0f,
@@ -487,14 +499,15 @@ void initializeShapes() {
 
     // Positions & scales for planets
     shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
-    shapes[1].position = glm::vec3(82.0f, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
-    shapes[2].position = glm::vec3(90.0f, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
-    shapes[3].position = glm::vec3(100.0f, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
-    shapes[4].position = glm::vec3(110.0f, 0.3f, 0.0f);   shapes[4].scale = glm::vec3(0.3f);   // Mars
-    shapes[5].position = glm::vec3(126.0f, 0.3f, 0.0f);   shapes[5].scale = glm::vec3(4.8f);   // Jupiter
-    shapes[6].position = glm::vec3(166.0f, 0.3f, 0.0f);   shapes[6].scale = glm::vec3(4.25f);  // Saturn
-    shapes[7].position = glm::vec3(206.0f, 0.3f, 0.0f);  shapes[7].scale = glm::vec3(2.4f);   // Uranus
-    shapes[8].position = glm::vec3(226.0f, 0.3f, 0.0f);  shapes[8].scale = glm::vec3(2.3f);   // Neptune
+    shapes[1].position = glm::vec3(MercuryPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
+    shapes[2].position = glm::vec3(VenusPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
+    shapes[3].position = glm::vec3(EarthPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
+    shapes[4].position = glm::vec3(MarsPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[4].scale = glm::vec3(0.3f);   // Mars
+    shapes[5].position = glm::vec3(JupiterPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[5].scale = glm::vec3(4.8f);   // Jupiter
+    shapes[6].position = glm::vec3(SaturnPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[6].scale = glm::vec3(4.25f);  // Saturn
+    shapes[7].position = glm::vec3(UranusPosX + shapes[0].position.x, 0.3f, 0.0f);  shapes[7].scale = glm::vec3(2.4f);   // Uranus
+    shapes[8].position = glm::vec3(NeptunePosX + shapes[0].position.x, 0.3f, 0.0f);  shapes[8].scale = glm::vec3(2.3f);   // Neptune 
+    // Above is Solar System 1, increment each planet X-pos with '+ shapes[0].position.x' to get Sun's relative position
 
     for (size_t i = 0; i < numOfSpheres; ++i) {
         setupShapeBuffers(shapes[i]);
@@ -594,30 +607,44 @@ void updateOrbitAnimation(float deltaTime) {
         globalTime += deltaTime;
 
         // Keep the Sun (index 0) locked at the origin
-        shapes[0].position = glm::vec3(0.0f);
+        //shapes[0].position = glm::vec3(0.0f);
 
-        for (size_t i = 1; i < 9; ++i) {
+        for (size_t i = 0; i < 9; ++i) {
             float time = globalTime + shapes[i].animationPhase;
 
             float radius = 0.0f;
             float speed = 1.0f;
 
             switch (i) {
-            case 1: radius = 82.0f; speed = 1.20f; break;  // Mercury (Fastest)
-            case 2: radius = 90.0f; speed = 0.90f; break;  // Venus
-            case 3: radius = 100.0f; speed = 0.75f; break;  // Earth
-            case 4: radius = 110.0f; speed = 0.60f; break;  // Mars
-            case 5: radius = 126.0f; speed = 0.40f; break;  // Jupiter
-            case 6: radius = 166.0f; speed = 0.25f; break;  // Saturn
-            case 7: radius = 206.0f; speed = 0.15f; break;  // Uranus
-            case 8: radius = 226.0f; speed = 0.08f; break;  // Neptune (Slowest)
+            case 0: radius = 100.0f; speed = 3.0f; break; // Sun
+            case 1: radius = MercuryPosX; speed = 1.20f; break;  // Mercury (Fastest)
+            case 2: radius = VenusPosX; speed = 0.90f; break;  // Venus
+            case 3: radius = EarthPosX; speed = 0.75f; break;  // Earth
+            case 4: radius = MarsPosX; speed = 0.60f; break;  // Mars
+            case 5: radius = JupiterPosX; speed = 0.40f; break;  // Jupiter
+            case 6: radius = SaturnPosX; speed = 0.25f; break;  // Saturn
+            case 7: radius = UranusPosX; speed = 0.15f; break;  // Uranus
+            case 8: radius = NeptunePosX; speed = 0.08f; break;  // Neptune (Slowest)
             }
 
-            // Apply perfect circular math on the XZ plane
-            shapes[i].position.x = radius * cos((time / 4) * speed);
-            shapes[i].position.y = 0.3f; // Flat placeholder Y offset
-            shapes[i].position.z = radius * sin((time / 4) * speed);
+            // 1. Calculate the pure circular math on the XZ plane relative to the center
+            float localX = radius * cos((time / 4) * speed);
+            float localZ = radius * sin((time / 4) * speed);
+
+            if (i == 0) {
+                // The Sun moves purely based on its own circle path
+                shapes[0].position.x = localX;
+                shapes[0].position.y = 0.3f;
+                shapes[0].position.z = localZ;
+            }
+            else {
+                // Identical to Moon logic: Add the Sun's position to the planet's local circular position
+                shapes[i].position.x = shapes[0].position.x + localX;
+                shapes[i].position.y = 0.3f;
+                shapes[i].position.z = shapes[0].position.z + localZ;
+            }
         }
+
         // Make moons
         for (size_t i = 9; i < shapes.size(); ++i) {
             if (shapes[i].isMoon) {
@@ -636,7 +663,6 @@ void updateOrbitAnimation(float deltaTime) {
         }
 
         // Axial rotation
-        // Planet Rotation speed
         std::vector<float> rotationSpeeds = {
             7.0f,   // Sun
             10.0f,   // Mercury
@@ -652,7 +678,6 @@ void updateOrbitAnimation(float deltaTime) {
         // Rotate Planets
         for (size_t i = 0; i < 9; ++i) {
             float time = globalTime + shapes[i].animationPhase;
-            // planet self rotation
             shapes[i].rotation.y += rotationSpeeds[i] * deltaTime;
         }
 
@@ -660,7 +685,6 @@ void updateOrbitAnimation(float deltaTime) {
         for (size_t i = 9; i < shapes.size(); ++i) {
             shapes[i].rotation.y += 50.0f * deltaTime;
         }
-        
     }
 }
 
