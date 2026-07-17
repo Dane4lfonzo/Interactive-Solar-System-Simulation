@@ -53,8 +53,9 @@ const char* fragmentShaderSource = "#version 330 core\n"
 "in vec2 TexCoords;\n"
 "uniform vec3 objectColor;\n"
 "uniform sampler2D texture_diffuse;\n"
+"uniform samplerCube skybox; // ADD THIS UNIFORM\n" // <--- 
 "uniform vec3 lightPos;\n"
-"uniform vec3 lightPos2;\n" 
+"uniform vec3 lightPos2;\n"
 "uniform vec3 lightPos3;\n"
 "uniform vec3 lightPos4;\n"
 "uniform vec3 lightPos5;\n"
@@ -62,8 +63,37 @@ const char* fragmentShaderSource = "#version 330 core\n"
 "uniform vec3 viewPos;\n"
 "uniform bool isSun;\n"
 "uniform bool useTexture;\n"
+"uniform bool isBlackHole;\n"
+"uniform vec3 blackHoleCenter;\n"
+"uniform float bhRadius;\n"
 "void main()\n"
 "{\n"
+"   if (isBlackHole) {\n"
+"       vec3 viewDir = normalize(FragPos - viewPos);\n"
+"       vec3 toCenter = normalize(blackHoleCenter - FragPos);\n"
+"       float alignment = dot(viewDir, toCenter);\n"
+"       \n"
+"       // 1. Crisp Event Horizon Core\n"
+"       if (alignment > 0.995) {\n"
+"           FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+"           return;\n"
+"       }\n"
+"       \n"
+"       // 2. High-intensity narrow accretion glow\n"
+"       float glowFactor = pow(alignment, 40.0);\n"
+"       vec3 accretionGlow = vec3(0.9, 0.4, 0.1) * glowFactor * 2.0;\n"
+"       \n"
+"       // 3. 3D Gravitational Lensing Warp\n"
+"       // We warp the actual 3D view vector instead of 2D coordinates\n"
+"       float warp = pow(alignment, 4.0) * 0.5;\n"
+"       vec3 warpedViewDir = viewDir + toCenter * warp;\n"
+"       \n"
+"       // Sample the 6-sided skybox using our bent 3D vector!\n"
+"       vec3 sceneColor = texture(skybox, normalize(warpedViewDir)).rgb;\n"
+"       \n"
+"       FragColor = vec4(sceneColor + accretionGlow, 1.0);\n"
+"       return;\n"
+"   }\n"
 "   vec3 finalColor = texture(texture_diffuse, TexCoords).rgb;\n"
 "   if (isSun) {\n"
 "       FragColor = vec4(finalColor, 1.0);\n" // Suns glow at 100% brightness
@@ -1582,6 +1612,20 @@ int main() {
                 // FALLBACK FOR MOONS: Use the mercury texture as a placeholder moon rock texture
                 glBindTexture(GL_TEXTURE_2D, mercuryTexture);
             }
+
+            if (i == 22) {
+                glUniform1i(glGetUniformLocation(program, "isBlackHole"), true);
+                glUniform3fv(glGetUniformLocation(program, "blackHoleCenter"), 1, glm::value_ptr(shapes[22].position));
+
+                // Bind your 6-sided Skybox Cubemap texture ID here
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture); // <-- Replace with your actual skybox texture variable
+                glUniform1i(glGetUniformLocation(program, "skybox"), 1);
+            }
+            else {
+                glUniform1i(glGetUniformLocation(program, "isBlackHole"), false);
+            }
+
             glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
 
             // Tell the fragment shader to actively use the texture instead of solid colors
