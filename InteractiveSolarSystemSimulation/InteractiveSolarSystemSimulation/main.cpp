@@ -54,44 +54,84 @@ const char* fragmentShaderSource = "#version 330 core\n"
 "uniform vec3 objectColor;\n"
 "uniform sampler2D texture_diffuse;\n"
 "uniform vec3 lightPos;\n"
+"uniform vec3 lightPos2;\n" 
+"uniform vec3 lightPos3;\n"
+"uniform vec3 lightPos4;\n"
+"uniform vec3 lightPos5;\n"
 "uniform vec3 lightColor;\n"
 "uniform vec3 viewPos;\n"
 "uniform bool isSun;\n"
 "uniform bool useTexture;\n"
 "void main()\n"
 "{\n"
-"   vec3 objectColor = texture(texture_diffuse, TexCoords).rgb;\n"
-"   if (useTexture) {\n"
-"       objectColor = texture(texture_diffuse, TexCoords).rgb;\n"
-"   }\n"
+"   vec3 finalColor = texture(texture_diffuse, TexCoords).rgb;\n"
 "   if (isSun) {\n"
-"       FragColor = vec4(objectColor, 1.0);\n" // Sun glows at 100% brightness, no shadows
+"       FragColor = vec4(finalColor, 1.0);\n" // Suns glow at 100% brightness
 "   } else {\n"
-"   // Ambient\n"
-"   float ambientStrength = 0.1;\n"
-"   vec3 ambient = ambientStrength * lightColor;\n"
-"   // Diffuse\n"
-"   vec3 norm = normalize(Normal);\n"
-"   //Attenuation\n"
-"   vec3 lightDir = normalize(lightPos - FragPos);\n"
-"   float distance = length(lightPos - FragPos);\n"
-"   float constant = 1.0;\n"
-"   float linear = 0.002;\n"
-"   float quadratic = 0.00005;\n"
-"   float attenuation = 1.0 /"
-"   (constant + linear * distance + quadratic * distance * distance);\n"
-"   float diff = max(dot(norm, lightDir), 0.0);\n"
-"   vec3 diffuse = diff * lightColor * attenuation;;\n"
-"   // Specular\n"
-"   float specularStrength = 0.5;\n"
-"   vec3 viewDir = normalize(viewPos - FragPos);\n"
-"   vec3 reflectDir = reflect(-lightDir, norm);\n"
-"   float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);\n"
-"   vec3 specular = specularStrength * spec * lightColor * attenuation;\n"
-"   vec3 result = (ambient + diffuse + specular) * objectColor;\n"
-"   FragColor = vec4(result, 1.0);\n"
+"       vec3 norm = normalize(Normal);\n"
+"       vec3 viewDir = normalize(viewPos - FragPos);\n"
+"       float ambientStrength = 0.1;\n"
+"       vec3 ambient = ambientStrength * lightColor;\n"
+"       float constant = 1.0;\n"
+"       float linear = 0.002;\n"
+"       float quadratic = 0.00005;\n"
+"       float specularStrength = 0.5;\n"
+"       \n"
+"       // === LIGHT SOURCE 1 (Sun 1) ===\n"
+"       vec3 lightDir1 = normalize(lightPos - FragPos);\n"
+"       float dist1 = length(lightPos - FragPos);\n"
+"       float att1 = 1.0 / (constant + linear * dist1 + quadratic * dist1 * dist1);\n"
+"       float diff1 = max(dot(norm, lightDir1), 0.0);\n"
+"       vec3 diffuse1 = diff1 * lightColor * att1;\n"
+"       vec3 reflectDir1 = reflect(-lightDir1, norm);\n"
+"       float spec1 = pow(max(dot(viewDir, reflectDir1), 0.0), 32);\n"
+"       vec3 specular1 = specularStrength * spec1 * lightColor * att1;\n"
+"       \n"
+"       // === LIGHT SOURCE 2 (Sun 2 / shapes[9]) ===\n"
+"       vec3 lightDir2 = normalize(lightPos2 - FragPos);\n"
+"       float dist2 = length(lightPos2 - FragPos);\n"
+"       float att2 = 1.0 / (constant + linear * dist2 + quadratic * dist2 * dist2);\n"
+"       float diff2 = max(dot(norm, lightDir2), 0.0);\n"
+"       vec3 diffuse2 = diff2 * lightColor * att2;\n"
+"       vec3 reflectDir2 = reflect(-lightDir2, norm);\n"
+"       float spec2 = pow(max(dot(viewDir, reflectDir2), 0.0), 32);\n"
+"       vec3 specular2 = specularStrength * spec2 * lightColor * att2;\n"
+"       \n"
+"       // === LIGHT SOURCE 3 (Sun 3 / shapes[13]) ===\n"
+"       vec3 lightDir3 = normalize(lightPos3 - FragPos);\n"
+"       float dist3 = length(lightPos3 - FragPos);\n"
+"       float att3 = 1.0 / (constant + linear * dist3 + quadratic * dist3 * dist3);\n"
+"       float diff3 = max(dot(norm, lightDir3), 0.0);\n"
+"       vec3 diffuse3 = diff3 * lightColor * att3;\n"
+"       vec3 reflectDir3 = reflect(-lightDir3, norm);\n"
+"       float spec3 = pow(max(dot(viewDir, reflectDir3), 0.0), 32);\n"
+"       vec3 specular3 = specularStrength * spec3 * lightColor * att3;\n"
+"       \n"
+"       // === LIGHT SOURCE 4 (Sun 4 / shapes[19]) ===\n"
+"       vec3 lightDir4 = normalize(lightPos4 - FragPos);\n"
+"       float dist4 = length(lightPos4 - FragPos);\n"
+"       float att4 = 1.0 / (constant + linear * dist4 + quadratic * dist4 * dist4);\n"
+"       float diff4 = max(dot(norm, lightDir4), 0.0);\n"
+"       vec3 diffuse4 = diff4 * lightColor * att4;\n"
+"       vec3 reflectDir4 = reflect(-lightDir4, norm);\n"
+"       float spec4 = pow(max(dot(viewDir, reflectDir4), 0.0), 32);\n"
+"       vec3 specular4 = specularStrength * spec4 * lightColor * att4;\n"
+"       \n"
+"       // === LIGHT SOURCE 5 (Sun 5 / shapes[18]) ===\n"
+"       vec3 lightDir5 = normalize(lightPos5 - FragPos);\n"
+"       float dist5 = length(lightPos5 - FragPos);\n"
+"       float att5 = 1.0 / (constant + linear * dist5 + quadratic * dist5 * dist5);\n"
+"       float diff5 = max(dot(norm, lightDir5), 0.0);\n"
+"       vec3 diffuse5 = diff5 * lightColor * att5;\n"
+"       vec3 reflectDir5 = reflect(-lightDir5, norm);\n"
+"       float spec5 = pow(max(dot(viewDir, reflectDir5), 0.0), 32);\n"
+"       vec3 specular5 = specularStrength * spec5 * lightColor * att5;\n"
+"       \n"
+"       // Combine ambient + both light sources\n"
+"       vec3 result = (ambient + diffuse1 + specular1 + diffuse2 + specular2 + diffuse3 + specular3 + diffuse4 + specular4 + diffuse5 + specular5) * finalColor;\n"
+"       FragColor = vec4(result, 1.0);\n"
 "   }\n"
-"   }\0";
+"}\0";
 
 const char* skyboxVertexShaderSource = "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
@@ -170,17 +210,17 @@ void displayInfo();
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 unsigned int compileShader(unsigned int type, const char* source);
 glm::mat4 createTransform3D(const Shape3D& shape);
-glm::mat4 createLocalTransform3D(const Shape3D& shape);
 
 // Global variables
 vector<Shape3D> shapes;
 Shape3D spaceship;
 int currentShape = 0;
-int numOfSpheres = 9;
+int numOfSpheres = 23;
 bool showGrid = true;
 bool showOrigin = true;
 bool orbitAnimation = false;
 float globalTime = 0.0f;
+float timeSlowFactor = 8.0f;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int skyboxTexture;
 unsigned int skyboxShader;
@@ -196,6 +236,24 @@ float SaturnPosX = 166.0f;
 float UranusPosX = 206.0f;
 float NeptunePosX = 226.0f;
 
+float HeliosPosX = 2000.0f; // 2nd Sun
+float TerraPosX = 100.0f;
+float SolarisPosX = 200.0f;
+float CastoricePosX = 250.0f;
+
+float SolPosX = -500.0f;  // 3rd Sun
+float YharonPosX = 100.0f;
+float GollumPosX = 200.0f;
+float DalekPosX = 250.0f;
+float BjornePosX = 350.0f;
+
+float centerOfStarsPosX = 4500.0f;
+
+float SuryaPosX = 500.0f; // 4th Sun
+float DharonPosX = 67.0f;
+float CubeoPosX = 169.0f;
+
+float BlackHolePosX = 0.0f;
 
 float skyboxVertices[] = {
     // Positions          
@@ -243,7 +301,7 @@ bool firstMouse = true;     // Detects mouse
 float lastX = 600.0f;       // Center X of 1200 width window
 float lastY = 450.0f;       // Center Y of 900 height window
 
-float cameraSpeed = 3.0f;
+float cameraSpeed = 20.0f; // Old speed was 3.0f
 float spaceshipSpeed = 5.0f;
 float fov = 45.0f;
 bool mouseEnabled = true;
@@ -501,7 +559,10 @@ void initializeShapes() {
     }
 
     // Positions & scales for planets
-    shapes[0].position = glm::vec3(0.0f, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
+    shapes[18].position = glm::vec3(centerOfStarsPosX, 0.0f, 0.0f); shapes[18].scale = glm::vec3(10.0f);
+    // This is the Center Point that will help make the two stars (Sol and Surya) orbit around eachother (hopefully)
+
+    shapes[0].position = glm::vec3(500.0f, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
     shapes[1].position = glm::vec3(MercuryPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
     shapes[2].position = glm::vec3(VenusPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
     shapes[3].position = glm::vec3(EarthPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
@@ -511,6 +572,23 @@ void initializeShapes() {
     shapes[7].position = glm::vec3(UranusPosX + shapes[0].position.x, 0.3f, 0.0f);  shapes[7].scale = glm::vec3(2.4f);   // Uranus
     shapes[8].position = glm::vec3(NeptunePosX + shapes[0].position.x, 0.3f, 0.0f);  shapes[8].scale = glm::vec3(2.3f);   // Neptune 
     // Above is Solar System 1, increment each planet X-pos with '+ shapes[0].position.x' to get Sun's relative position
+    shapes[9].position = glm::vec3(HeliosPosX, 0.0f, 0.0f); shapes[9].scale = glm::vec3(50.0f);
+    shapes[10].position = glm::vec3(TerraPosX + shapes[9].position.x, 0.3f, 0.0f); shapes[10].scale = glm::vec3(5.0f);
+    shapes[11].position = glm::vec3(SolarisPosX + shapes[9].position.x, 0.3f, 0.0f); shapes[11].scale = glm::vec3(2.0f);
+    shapes[12].position = glm::vec3(CastoricePosX + shapes[9].position.x, 0.3f, 0.0f); shapes[12].scale = glm::vec3(3.0f);
+    // Above is Solar System 2 
+    shapes[13].position = glm::vec3(SolPosX + shapes[18].position.x, 0.0f, 0.0f); shapes[13].scale = glm::vec3(15.0f);
+    shapes[14].position = glm::vec3(YharonPosX + shapes[13].position.x, 0.3f, 0.0f); shapes[14].scale = glm::vec3(2.0f);
+    shapes[15].position = glm::vec3(GollumPosX + shapes[13].position.x, 0.3f, 0.0f); shapes[15].scale = glm::vec3(2.0f);
+    shapes[16].position = glm::vec3(DalekPosX + shapes[13].position.x, 0.3f, 0.0f); shapes[16].scale = glm::vec3(2.0f);
+    shapes[17].position = glm::vec3(BjornePosX + shapes[13].position.x, 0.3f, 0.0f); shapes[17].scale = glm::vec3(2.0f);
+    // Above is Solar System 3
+    shapes[19].position = glm::vec3(SuryaPosX + shapes[18].position.x, 0.0f, 0.0f); shapes[19].scale = glm::vec3(20.0f);
+    shapes[20].position = glm::vec3(DharonPosX + shapes[19].position.x, 0.3f, 0.0f); shapes[20].scale = glm::vec3(2.4f);
+    shapes[21].position = glm::vec3(CubeoPosX + shapes[19].position.x, 0.3f, 0.0f); shapes[21].scale = glm::vec3(4.8f);
+    // Above is Solar System 4
+    shapes[22].position = glm::vec3(BlackHolePosX, 0.0f, 0.0f); shapes[22].scale = glm::vec3(100.0f);
+    
 
     for (size_t i = 0; i < numOfSpheres; ++i) {
         setupShapeBuffers(shapes[i]);
@@ -612,14 +690,14 @@ void updateOrbitAnimation(float deltaTime) {
         // Keep the Sun (index 0) locked at the origin
         //shapes[0].position = glm::vec3(0.0f);
 
-        for (size_t i = 0; i < 9; ++i) {
-            float time = globalTime + shapes[i].animationPhase;
+        for (size_t i = 0; i < numOfSpheres; ++i) {
+            float time = (globalTime + shapes[i].animationPhase) / timeSlowFactor;
 
             float radius = 0.0f;
             float speed = 1.0f;
 
             switch (i) {
-            case 0: radius = 100.0f; speed = 3.0f; break; // Sun
+            case 0: radius = 500.0f; speed = 4.0f; break; // Sun
             case 1: radius = MercuryPosX; speed = 1.20f; break;  // Mercury (Fastest)
             case 2: radius = VenusPosX; speed = 0.90f; break;  // Venus
             case 3: radius = EarthPosX; speed = 0.75f; break;  // Earth
@@ -628,6 +706,19 @@ void updateOrbitAnimation(float deltaTime) {
             case 6: radius = SaturnPosX; speed = 0.25f; break;  // Saturn
             case 7: radius = UranusPosX; speed = 0.15f; break;  // Uranus
             case 8: radius = NeptunePosX; speed = 0.08f; break;  // Neptune (Slowest)
+            case 9: radius = HeliosPosX; speed = 2.0f; break;
+            case 10: radius = TerraPosX; speed = 0.5f; break; 
+            case 11: radius = SolarisPosX; speed = 0.7f; break;
+            case 12: radius = CastoricePosX; speed = 0.4; break;
+            case 13: radius = SolPosX; speed = 8.0f; break; // Sun 3
+            case 14: radius = YharonPosX; speed = 0.90f; break;
+            case 15: radius = GollumPosX; speed = 0.60f; break;
+            case 16: radius = DalekPosX; speed = 1.20f; break;
+            case 17: radius = BjornePosX; speed = 0.40f; break;
+            case 18: radius = centerOfStarsPosX; speed = 2.0f; break;
+            case 19: radius = SuryaPosX; speed = 8.0f; break; // Sun 4
+            case 20: radius = DharonPosX; speed = 1.20f; break;
+            case 21: radius = CubeoPosX; speed = 0.75f; break;
             }
 
             // 1. Calculate the pure circular math on the XZ plane relative to the center
@@ -640,11 +731,48 @@ void updateOrbitAnimation(float deltaTime) {
                 shapes[0].position.y = 0.3f;
                 shapes[0].position.z = localZ;
             }
-            else {
+            else if (i == 9) {
+                shapes[9].position.x = localX;
+                shapes[9].position.y = 0.3f;
+                shapes[9].position.z = localZ;
+            }
+            else if (i == 18) {
+                shapes[18].position.x = localX;
+                shapes[18].position.y = 0.3f;
+                shapes[18].position.z = localZ;
+            }
+            else if (i < 9 && !(i >= 9)) {
                 // Identical to Moon logic: Add the Sun's position to the planet's local circular position
                 shapes[i].position.x = shapes[0].position.x + localX;
                 shapes[i].position.y = 0.3f;
                 shapes[i].position.z = shapes[0].position.z + localZ;
+            }
+            else if (i < 13 && !(i >= 13)) {
+                shapes[i].position.x = shapes[9].position.x + localX;
+                shapes[i].position.y = 0.3f;
+                shapes[i].position.z = shapes[9].position.z + localZ;
+            }
+            else if (i == 13) { // For orbiting the two star around eachother
+                shapes[i].position.x = shapes[18].position.x + localX;
+                shapes[i].position.y = 0.3f;
+                shapes[i].position.z = shapes[18].position.z + localZ;
+            }
+            else if (i == 19) {
+                shapes[i].position.x = shapes[18].position.x + localX;
+                shapes[i].position.y = 0.3f;
+                shapes[i].position.z = shapes[18].position.z + localZ;
+            }
+            else if (i >= 14 && i <= 17) {
+                // Anchor Yharon, Gollum, Dalek, and Bjorne around Sol (shapes[13])
+                shapes[i].position.x = shapes[13].position.x + localX;
+                shapes[i].position.y = 0.3f;
+                shapes[i].position.z = shapes[13].position.z + localZ;
+            }
+            else if (i == 20 || i == 21) {
+                // Anchor your new planets around Surya (shapes[19])
+                shapes[i].position.x = shapes[19].position.x + localX;
+                shapes[i].position.y = 0.3f;
+                shapes[i].position.z = shapes[19].position.z + localZ;
             }
         }
 
@@ -998,7 +1126,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_TAB:
             if (action == GLFW_PRESS) {
                 // Keep the camera cycling strictly through the 9 main planets (0 to 8)
-                currentShape = (currentShape + 1) % 9;
+                currentShape = (currentShape + 1) % numOfSpheres;
                 currentCameraMode = TRACKING;
             }
             break;
@@ -1016,27 +1144,26 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             break;
 
         // Camera controls
-            case GLFW_KEY_W:
-                if (currentCameraMode == FREECAM) {
-                    cameraPos += cameraSpeed * cameraFront;
-                }
-                break;
-            case GLFW_KEY_S:
-                if (currentCameraMode == FREECAM) {
-                    cameraPos -= cameraSpeed * cameraFront;
-                }
-                break;
-            case GLFW_KEY_A:
-                if (currentCameraMode == FREECAM) {
-                    cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-                }
-                break;
-            case GLFW_KEY_D:
-                if (currentCameraMode == FREECAM) {
-                    cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-                }
-                break;
-        
+        case GLFW_KEY_W:
+            if (currentCameraMode == FREECAM) {
+                cameraPos += cameraSpeed * cameraFront;
+            }
+            break;
+        case GLFW_KEY_S:
+            if (currentCameraMode == FREECAM) {
+                cameraPos -= cameraSpeed * cameraFront;
+            }
+            break;
+        case GLFW_KEY_A:
+            if (currentCameraMode == FREECAM) {
+                cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+            }
+            break;
+        case GLFW_KEY_D:
+            if (currentCameraMode == FREECAM) {
+                cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+            }
+            break;
 
             // Camera Rotation
         case GLFW_KEY_I: { // tilt up
@@ -1174,7 +1301,7 @@ void updateCamera(float deltaTime) {
     if (currentCameraMode == TRACKING) {
         const Shape3D& targetPlanet = shapes[currentShape];
 
-        float camDistance = 8.0f;
+        float camDistance = 320.0f; // 32.0f
 
         // Calculate dynamic offset vector using the mouse yaw and pitch angles
         glm::vec3 offset;
@@ -1302,6 +1429,11 @@ int main() {
     unsigned int saturnTexture = loadTexture("saturn.jpg");
     unsigned int uranusTexture = loadTexture("uranus.jpg");
     unsigned int neptuneTexture = loadTexture("neptune.jpg");
+    unsigned int heliosTexture = loadTexture("whitesun.jpg");
+    unsigned int solTexture = loadTexture("bluesun.jpg");
+    unsigned int suryaTexture = loadTexture("redsun.jpg");
+    unsigned int centreStarTexture = loadTexture("lightorangesun.jpg");
+    unsigned int blackTexture = loadTexture("Black_colour.jpg");
 
     std::vector<unsigned int> planetTextures = {
         sunTexture, mercuryTexture, venusTexture, earthTexture,
@@ -1345,13 +1477,17 @@ int main() {
 
         // Set up matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        glm::mat4 projection = glm::perspective(glm::radians(fov), 1200.0f / 900.0f, 0.1f, 1000.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(fov), 1200.0f / 900.0f, 0.1f, 10000000.0f);
 
         glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
         // Set lighting uniforms
-        glUniform3fv(glGetUniformLocation(program, "lightPos"), 1, glm::value_ptr(lightPos));
+        glUniform3fv(glGetUniformLocation(program, "lightPos"), 1, glm::value_ptr(shapes[0].position));
+        glUniform3fv(glGetUniformLocation(program, "lightPos2"), 1, glm::value_ptr(shapes[9].position));
+        glUniform3fv(glGetUniformLocation(program, "lightPos3"), 1, glm::value_ptr(shapes[13].position));
+        glUniform3fv(glGetUniformLocation(program, "lightPos4"), 1, glm::value_ptr(shapes[19].position));
+        glUniform3fv(glGetUniformLocation(program, "lightPos5"), 1, glm::value_ptr(shapes[18].position));
         glUniform3fv(glGetUniformLocation(program, "lightColor"), 1, glm::value_ptr(lightColor));
         glUniform3fv(glGetUniformLocation(program, "viewPos"), 1, glm::value_ptr(cameraPos));
 
@@ -1364,7 +1500,7 @@ int main() {
             const auto& shape = shapes[i];
 
             // Make the sun shadeless
-            if (i == 0) {
+            if (i == 0 || i == 9 || i == 13 || i == 18 || i == 19) {
                 glUniform1i(glGetUniformLocation(program, "isSun"), true);
             }
             else {
@@ -1399,6 +1535,48 @@ int main() {
             }
             else if (i == 8) {
                 glBindTexture(GL_TEXTURE_2D, neptuneTexture);
+            }
+            else if (i == 9) {
+                glBindTexture(GL_TEXTURE_2D, heliosTexture);
+            }
+            else if (i == 10) {
+                glBindTexture(GL_TEXTURE_2D, neptuneTexture);
+            }
+            else if (i == 11) {
+                glBindTexture(GL_TEXTURE_2D, earthTexture);
+            }
+            else if (i == 12) {
+                glBindTexture(GL_TEXTURE_2D, saturnTexture);
+            }
+            else if (i == 13) {
+                glBindTexture(GL_TEXTURE_2D, solTexture);
+            }
+            else if (i == 14) {
+                glBindTexture(GL_TEXTURE_2D, marsTexture);
+            }
+            else if (i == 15) {
+                glBindTexture(GL_TEXTURE_2D, venusTexture);
+            }
+            else if (i == 16) {
+                glBindTexture(GL_TEXTURE_2D, uranusTexture);
+            }
+            else if (i == 17) {
+                glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+            }
+            else if (i == 18) {
+                glBindTexture(GL_TEXTURE_2D, centreStarTexture);
+            }
+            else if (i == 19) {
+                glBindTexture(GL_TEXTURE_2D, suryaTexture);
+            }
+            else if (i == 20) {
+                glBindTexture(GL_TEXTURE_2D, saturnTexture);
+            }
+            else if (i == 21) {
+                glBindTexture(GL_TEXTURE_2D, jupiterTexture);
+            }
+            else if (i == 22) {
+                glBindTexture(GL_TEXTURE_2D, blackTexture);
             }
             else {
                 // FALLBACK FOR MOONS: Use the mercury texture as a placeholder moon rock texture
