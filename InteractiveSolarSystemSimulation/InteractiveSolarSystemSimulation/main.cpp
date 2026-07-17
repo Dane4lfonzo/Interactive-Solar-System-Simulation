@@ -20,6 +20,9 @@ using namespace std;
 #include <string>
 #include <map>
 #include "stb_image.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 const float PI = 3.14159265358979323846f;
 
@@ -921,6 +924,9 @@ void displayInfo() {
 
 // Detect user's mouse input
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    if (ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
+        return;
+
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
@@ -1184,6 +1190,44 @@ void updateCamera(float deltaTime) {
     }
 }
 
+void TopBarMenu(GLFWwindow* window) {
+    // Top Menu Bar UI
+// Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    double mouseX, mouseY;
+    glfwGetCursorPos(window, &mouseX, &mouseY);
+
+    // Force ImGui's internal IO system to use the true window-relative coordinates
+    ImGui::GetIO().AddMousePosEvent(static_cast<float>(mouseX), static_cast<float>(mouseY));
+
+    // Create the Main Top Menu Bar
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("Simulation Controls")) {
+            if (ImGui::MenuItem("Button 1 (Placeholder)")) {
+                // Left-click functionality goes here later
+                std::cout << "Button 1 clicked!" << std::endl;
+            }
+            if (ImGui::MenuItem("Button 2 (Placeholder)")) {
+                // Left-click functionality goes here later
+                std::cout << "Button 2 clicked!" << std::endl;
+            }
+            if (ImGui::MenuItem("Button 3 (Placeholder)")) {
+                // Left-click functionality goes here later
+                std::cout << "Button 3 clicked!" << std::endl;
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+
+    // Rendering ImGui data to the screen
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
 // Main function
 int main() {
     // Initialize GLFW
@@ -1198,6 +1242,19 @@ int main() {
     glfwMakeContextCurrent(window);
 
     if (glewInit() != GLEW_OK) return -1;
+
+    // ImGui setup
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
 
     // Initialize shapes
     initializeShapes();
@@ -1420,6 +1477,7 @@ int main() {
         glBindVertexArray(0);
         glDepthFunc(GL_LESS); // Restore default depth test function
 
+        TopBarMenu(window);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -1431,6 +1489,9 @@ int main() {
         glDeleteBuffers(1, &shape.VBO);
         glDeleteBuffers(1, &shape.EBO);
     }
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
     return 0;
