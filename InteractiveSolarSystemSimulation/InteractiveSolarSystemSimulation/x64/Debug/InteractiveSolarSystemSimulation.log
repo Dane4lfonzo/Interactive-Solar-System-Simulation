@@ -1,3 +1,3 @@
 ﻿  main.cpp
-C:\Users\User\Work\Interactive-Solar-System-Simulation\InteractiveSolarSystemSimulation\InteractiveSolarSystemSimulation\main.cpp(742,54): warning C4305: '=': truncation from 'double' to 'float'
+C:\Users\User\Work\Interactive-Solar-System-Simulation\InteractiveSolarSystemSimulation\InteractiveSolarSystemSimulation\main.cpp(783,54): warning C4305: '=': truncation from 'double' to 'float'
   InteractiveSolarSystemSimulation.vcxproj -> C:\Users\User\Work\Interactive-Solar-System-Simulation\InteractiveSolarSystemSimulation\x64\Debug\InteractiveSolarSystemSimulation.exe

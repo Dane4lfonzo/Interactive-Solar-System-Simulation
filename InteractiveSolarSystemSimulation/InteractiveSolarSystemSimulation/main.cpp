@@ -257,6 +257,7 @@ unsigned int skyboxShader;
 unsigned int spaceshipTexture;
 
 // Planet Position Global Variables (mainly x-axis)
+float SunPosX = 4500.0f;
 float MercuryPosX = 82.0f;
 float VenusPosX = 90.0f;
 float EarthPosX = 100.0f;
@@ -266,7 +267,7 @@ float SaturnPosX = 166.0f;
 float UranusPosX = 206.0f;
 float NeptunePosX = 226.0f;
 
-float HeliosPosX = 2000.0f; // 2nd Sun
+float HeliosPosX = 6000.0f; // 2nd Sun
 float TerraPosX = 100.0f;
 float SolarisPosX = 200.0f;
 float CastoricePosX = 250.0f;
@@ -277,7 +278,7 @@ float GollumPosX = 200.0f;
 float DalekPosX = 250.0f;
 float BjornePosX = 350.0f;
 
-float centerOfStarsPosX = 4500.0f;
+float centerOfStarsPosX = 8500.0f;
 
 float SuryaPosX = 500.0f; // 4th Sun
 float DharonPosX = 67.0f;
@@ -313,13 +314,17 @@ struct RingParticle {
     float currentAngle;
 };
 
-const int NUM_PARTICLES = 8000;
+const int NUM_PARTICLES_SATURN = 8000;
 vector<RingParticle> saturnRings;
 unsigned int ringVAO, ringVBO;
 
+const int NUM_PARTICLES_BHOLE = 16000;
+vector<RingParticle> bholeRings;
+unsigned int bholeRingVAO, bholeRingVBO;
+
 
 // Camera variables
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
+glm::vec3 cameraPos = glm::vec3(HeliosPosX + 100.0f, 0.0f, 5.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 direction;
@@ -592,7 +597,7 @@ void initializeShapes() {
     shapes[18].position = glm::vec3(centerOfStarsPosX, 0.0f, 0.0f); shapes[18].scale = glm::vec3(10.0f);
     // This is the Center Point that will help make the two stars (Sol and Surya) orbit around eachother (hopefully)
 
-    shapes[0].position = glm::vec3(500.0f, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
+    shapes[0].position = glm::vec3(SunPosX, 0.0f, 0.0f);    shapes[0].scale = glm::vec3(26.16f); // Sun
     shapes[1].position = glm::vec3(MercuryPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[1].scale = glm::vec3(0.2f);   // Mercury
     shapes[2].position = glm::vec3(VenusPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[2].scale = glm::vec3(0.575f); // Venus
     shapes[3].position = glm::vec3(EarthPosX + shapes[0].position.x, 0.3f, 0.0f);   shapes[3].scale = glm::vec3(0.6f);   // Earth
@@ -617,18 +622,18 @@ void initializeShapes() {
     shapes[20].position = glm::vec3(DharonPosX + shapes[19].position.x, 0.3f, 0.0f); shapes[20].scale = glm::vec3(2.4f);
     shapes[21].position = glm::vec3(CubeoPosX + shapes[19].position.x, 0.3f, 0.0f); shapes[21].scale = glm::vec3(4.8f);
     // Above is Solar System 4
-    shapes[22].position = glm::vec3(BlackHolePosX, 0.0f, 0.0f); shapes[22].scale = glm::vec3(100.0f);
+    shapes[22].position = glm::vec3(BlackHolePosX, 0.0f, 0.0f); shapes[22].scale = glm::vec3(1000.0f);
     
 
     for (size_t i = 0; i < numOfSpheres; ++i) {
         setupShapeBuffers(shapes[i]);
     }
 
-    saturnRings.resize(NUM_PARTICLES);
+    saturnRings.resize(NUM_PARTICLES_SATURN);
     float innerRadius = 5.5f;
     float outerRadius = 10.0f;
 
-    for (int i = 0; i < NUM_PARTICLES; ++i) {
+    for (int i = 0; i < NUM_PARTICLES_SATURN; ++i) {
         float r = innerRadius + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (outerRadius - innerRadius)));
 
         float angle = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (2.0f * PI)));
@@ -643,13 +648,49 @@ void initializeShapes() {
         saturnRings[i].relativePosition.z = r * sin(angle);
     }
 
+    bholeRings.resize(NUM_PARTICLES_BHOLE);
+    float bholeInnerRadius = 1000.0f;
+    float bholeOuterRadius = 3000.0f;
+
+    for (int i = 0; i < NUM_PARTICLES_BHOLE; ++i) {
+        float r = bholeInnerRadius + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (bholeOuterRadius - bholeInnerRadius)));
+
+        float angle = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (2.0f * PI)));
+
+        bholeRings[i].orbitRadius = r;
+        bholeRings[i].currentAngle = angle;
+
+        bholeRings[i].orbitSpeed = 4.0f / sqrt(r);
+
+        bholeRings[i].relativePosition.x = r * cos(angle);
+        bholeRings[i].relativePosition.y = 0.0f;
+        bholeRings[i].relativePosition.z = r * sin(angle);
+    }
+
+    // 1. Configure Saturn's VAO
     glGenVertexArrays(1, &ringVAO);
     glGenBuffers(1, &ringVBO);
-
     glBindVertexArray(ringVAO);
     glBindBuffer(GL_ARRAY_BUFFER, ringVBO);
+    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES_SATURN * sizeof(glm::vec3), NULL, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
 
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * sizeof(glm::vec3), NULL, GL_DYNAMIC_DRAW);
+    glVertexAttrib4f(1, 0.85f, 0.75f, 0.6f, 1.0f);
+
+    glBindVertexArray(0); // Safely unbind
+
+    // 2. Configure Black Hole's VAO
+    glGenVertexArrays(1, &bholeRingVAO);
+    glGenBuffers(1, &bholeRingVBO);
+    glBindVertexArray(bholeRingVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, bholeRingVBO);
+    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES_BHOLE * sizeof(glm::vec3), NULL, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0); // Safely unbind
+    
+
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
@@ -727,7 +768,7 @@ void updateOrbitAnimation(float deltaTime) {
             float speed = 1.0f;
 
             switch (i) {
-            case 0: radius = 500.0f; speed = 4.0f; break; // Sun
+            case 0: radius = SunPosX; speed = 4.0f; break; // Sun
             case 1: radius = MercuryPosX; speed = 1.20f; break;  // Mercury (Fastest)
             case 2: radius = VenusPosX; speed = 0.90f; break;  // Venus
             case 3: radius = EarthPosX; speed = 0.75f; break;  // Earth
@@ -833,25 +874,49 @@ void updateOrbitAnimation(float deltaTime) {
             70.0f,   // Jupiter
             60.0f,   // Saturn
             -40.0f,  // Uranus (retrograde-ish)
-            45.0f    // Neptune
+            45.0f,    // Neptune
+
+            14.0f,   // Helios
+            60.0f,   // Terra
+            25.0f,   // Solaris
+            45.0f,   // Castorice
+
+            120.0f, // Sol
+            66.0f,  // Yharon
+            76.0f,  // Gollum
+            89.0f,  // Dalek
+            27.0f,  // Bjorne
+
+            160.0f, // Center Star
+
+            180.0f,  // Surya
+            132.0f,  // Dharon
+            99.0f,    // Cubeo
+
+            200.0f  // Black Hole
         };
 
-        // Rotate Planets
-        for (size_t i = 0; i < 9; ++i) {
-            float time = globalTime + shapes[i].animationPhase;
-            shapes[i].rotation.y += rotationSpeeds[i] * deltaTime;
-        }
+        // Rotate Planets and moons
+        for (size_t i = 0; i < shapes.size(); ++i) {
+            float speed = 0.0f;
 
-        // Rotate Moons 
-        for (size_t i = 9; i < shapes.size(); ++i) {
-            shapes[i].rotation.y += 50.0f * deltaTime;
+            if (i < rotationSpeeds.size()) {
+                // If it's a primary system body, use its custom speed
+                speed = rotationSpeeds[i];
+            }
+            else {
+                // Safely handles all moons dynamically, no matter how many you add!
+                speed = 50.0f;
+            }
+
+            shapes[i].rotation.y += speed * deltaTime;
         }
     }
 }
 
 void updateSaturnRings(float deltaTime) {
     if (orbitAnimation) {
-        for (int i = 0; i < NUM_PARTICLES; ++i) {
+        for (int i = 0; i < NUM_PARTICLES_SATURN; ++i) {
             saturnRings[i].currentAngle += saturnRings[i].orbitSpeed * deltaTime;
 
             float r = saturnRings[i].orbitRadius;
@@ -859,6 +924,20 @@ void updateSaturnRings(float deltaTime) {
 
             saturnRings[i].relativePosition.x = r * cos(angle);
             saturnRings[i].relativePosition.z = r * sin(angle);
+        }
+    }
+}
+
+void updateBholeRings(float deltaTime) {
+    if (orbitAnimation) {
+        for (int i = 0; i < NUM_PARTICLES_BHOLE; ++i) {
+            bholeRings[i].currentAngle += bholeRings[i].orbitSpeed * deltaTime;
+
+            float r = bholeRings[i].orbitRadius;
+            float angle = bholeRings[i].currentAngle;
+
+            bholeRings[i].relativePosition.x = r * cos(angle);
+            bholeRings[i].relativePosition.z = r * sin(angle);
         }
     }
 }
@@ -954,25 +1033,58 @@ void drawOrigin(unsigned int program) {
 void drawSaturnRings(unsigned int program) {
     glm::vec3 saturnPos = shapes[6].position;
 
-    vector<glm::vec3> globalParticlePositions(NUM_PARTICLES);
-    for (int i = 0; i < NUM_PARTICLES; ++i) {
+    vector<glm::vec3> globalParticlePositions(NUM_PARTICLES_SATURN);
+    for (int i = 0; i < NUM_PARTICLES_SATURN; ++i) {
         globalParticlePositions[i] = saturnPos + saturnRings[i].relativePosition;
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, ringVBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, NUM_PARTICLES * sizeof(glm::vec3), globalParticlePositions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, 0, NUM_PARTICLES_SATURN * sizeof(glm::vec3), globalParticlePositions.data());
 
     glm::mat4 identityModel = glm::mat4(1.0f); // Position is already computed in world-space
     glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(identityModel));
 
     // Give the rings a dusty golden/rock color
+    glUniform1i(glGetUniformLocation(program, "useTexture"), false); 
+    glUniform1i(glGetUniformLocation(program, "isSun"), true);
     glUniform3f(glGetUniformLocation(program, "objectColor"), 0.85f, 0.75f, 0.6f);
-    glUniform1i(glGetUniformLocation(program, "useTexture"), false); // Tell shader not to use texture
-    //glUniform1i(glGetUniformLocation(program, "isSun"), false);
+    
+    
 
     glPointSize(2.0f); // Sets the pixel width of each point
     glBindVertexArray(ringVAO);
-    glDrawArrays(GL_POINTS, 0, NUM_PARTICLES);
+    glDrawArrays(GL_POINTS, 0, NUM_PARTICLES_SATURN);
+
+    //glUniform1i(glGetUniformLocation(program, "isSun"), false);
+    glBindVertexArray(0);
+}
+
+void drawBholeRings(unsigned int program) {
+    glm::vec3 saturnPos = shapes[22].position;
+
+    vector<glm::vec3> globalParticlePositions(NUM_PARTICLES_BHOLE);
+    for (int i = 0; i < NUM_PARTICLES_BHOLE; ++i) {
+        globalParticlePositions[i] = saturnPos + bholeRings[i].relativePosition;
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, bholeRingVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, NUM_PARTICLES_BHOLE * sizeof(glm::vec3), globalParticlePositions.data());
+
+    glm::mat4 identityModel = glm::mat4(1.0f); // Position is already computed in world-space
+    glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(identityModel));
+
+    // Give the rings a dusty golden/rock color
+    glUniform1i(glGetUniformLocation(program, "useTexture"), false); // Tell shader not to use texture
+    glUniform1i(glGetUniformLocation(program, "isSun"), true);
+    glUniform3f(glGetUniformLocation(program, "objectColor"), 0.85f, 0.75f, 0.6f);
+    
+
+    glPointSize(2.0f); // Sets the pixel width of each point
+    glBindVertexArray(bholeRingVAO);
+    glDrawArrays(GL_POINTS, 0, NUM_PARTICLES_BHOLE);
+
+    //glUniform1i(glGetUniformLocation(program, "isSun"), false);
+    glBindVertexArray(0);
 }
 
 void setupSkybox() {
@@ -1489,6 +1601,7 @@ int main() {
         // Update animations
         updateOrbitAnimation(deltaTime);
         updateSaturnRings(deltaTime);
+        updateBholeRings(deltaTime);
 
         // Focus camera on planets when pressing TAB
         updateCamera(deltaTime);
@@ -1631,8 +1744,6 @@ int main() {
             // Tell the fragment shader to actively use the texture instead of solid colors
             glUniform1i(glGetUniformLocation(program, "useTexture"), 1);
 
-            drawSaturnRings(program);
-
             glm::mat4 globalTransform = createTransform3D(shape);
             glm::mat4 finalTransform = globalTransform;
             
@@ -1656,6 +1767,9 @@ int main() {
             glBindVertexArray(shape.VAO);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(shape.indices.size()), GL_UNSIGNED_INT, 0);
         }
+
+        drawSaturnRings(program);
+        drawBholeRings(program);
 
         if (spaceship.VAO != 0) {
             glUseProgram(program); // Your main shader program
