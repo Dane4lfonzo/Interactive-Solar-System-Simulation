@@ -742,7 +742,7 @@ void initializeShapes() {
         setupShapeBuffers(spaceship);
 
         // Spawn next to Earth
-        spaceship.position = glm::vec3(50.0f, 0.3f, 2.0f);
+        spaceship.position = glm::vec3(shapes[3].position.x + 5.0f, 0.3f, shapes[3].position.z + 2.0f);
         spaceship.scale = glm::vec3(0.05f);
         spaceship.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 
@@ -1394,17 +1394,28 @@ void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
     // 1. Shift for Speed Boost
     float currentSpeed = spaceshipSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
-        currentSpeed *= 3.0f;
+        currentSpeed *= 30.0f;
     }
+
+
 
     // 2. A and D rotate the physical spaceship model structure left and right
     float spaceshipRotationSpeed = 60.0f;
+    float maxTiltAngle = 30.0f; // Maximum angle the ship will lean (in degrees)
+    float targetTilt = 0.0f;    // Level by default
+
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
         spaceship.rotation.y += spaceshipRotationSpeed * deltaTime;
+        targetTilt = -maxTiltAngle; // Tilt left
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
         spaceship.rotation.y -= spaceshipRotationSpeed * deltaTime;
+        targetTilt = maxTiltAngle; // Tilt right
     }
+
+    // Smoothly interpolate current roll (Z axis) towards the target tilt
+    // 10.0f controls how fast it snaps/leans into the position. Higher = snappier.
+    spaceship.rotation.z = glm::mix(spaceship.rotation.z, targetTilt, 10.0f * deltaTime);
 
     // 3. Update the direction vector using the updated ship rotation angle
     float yawRadians = glm::radians(spaceship.rotation.y - 90.0f);
@@ -1428,9 +1439,9 @@ void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
         spaceship.position.y -= currentSpeed * deltaTime;
     }
 
-    // 6. Camera Offset - Position locks behind, cameraFront is mapped exactly how you wanted
+    // 6. Camera Offset - Position locks behind
     glm::vec3 cameraBehindOffset = -spaceshipCamera * 4.0f;
-    cameraBehindOffset.y = 1.5f;
+    cameraBehindOffset.y = 1.05f; // This here is the camera angle
 
     cameraPos = spaceship.position + cameraBehindOffset;
     cameraFront = glm::normalize(spaceship.position - cameraPos);
@@ -1474,8 +1485,8 @@ void TopBarMenu(GLFWwindow* window) {
 
     // Create the Main Top Menu Bar
     if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Simulation Controls")) {
-            if (ImGui::MenuItem("Button 1 (Placeholder)")) {
+        if (ImGui::BeginMenu("Spaceship Control Panel")) {
+            if (ImGui::MenuItem("Auto-Pilot")) {
                 // Left-click functionality goes here later
                 std::cout << "Button 1 clicked!" << std::endl;
             }
