@@ -261,6 +261,11 @@ int autoPilotTargetIndex = -1;
 float autoPilotSpeed = 150.0f;
 float arrivalThreshold = 15.0f; 
 
+bool isOrbitingTarget = false;
+float orbitAngle = 0.0f;       // Tracks the spaceship's progress around the planet
+float orbitRadius = 15.0f;     // How far away from the planet center you want to orbit
+float orbitSpeed = 1.5f;       // How fast the ship circles the planet
+
 // Planet Position Global Variables (mainly x-axis)
 float SunPosX = 4500.0f;
 float MercuryPosX = 82.0f;
@@ -1536,6 +1541,7 @@ void TopBarMenu(GLFWwindow* window) {
                     ImGui::Separator();
                     if (ImGui::MenuItem("Disengage Auto-Pilot")) {
                         isAutoPilotActive = false;
+                        isOrbitingTarget = false; // <-- Clear orbital lock state here
                         autoPilotTargetIndex = -1;
                         std::cout << "Auto-Pilot disengaged manually." << std::endl;
                     }
@@ -1680,45 +1686,92 @@ int main() {
         if (isAutoPilotActive && currentCameraMode == SPACESHIP_DRIVE && autoPilotTargetIndex >= 0 && autoPilotTargetIndex < static_cast<int>(shapes.size())) {
             glm::vec3 targetPos = shapes[autoPilotTargetIndex].position;
 
-            glm::vec3 direction = targetPos - spaceship.position;
-            float distance = glm::length(direction);
+            if (!isOrbitingTarget) {
+                // --- APPROACH PHASE ---
+                glm::vec3 direction = targetPos - spaceship.position;
+                float distance = glm::length(direction);
 
-            if (distance > arrivalThreshold) {
-                direction = glm::normalize(direction);
+                if (distance > arrivalThreshold) {
+                    direction = glm::normalize(direction);
 
-                // 1. Move the physical spaceship forward
-                spaceship.position += direction * autoPilotSpeed * deltaTime;
+                    // Move the physical spaceship forward
+                    spaceship.position += direction * autoPilotSpeed * deltaTime;
 
-                // 2. Synchronize your ship's horizontal rotation
-                float targetYawRadians = atan2(-direction.z, direction.x);
+                    // Synchronize your ship's horizontal rotation
+                    float targetYawRadians = atan2(-direction.z, direction.x);
+                    spaceship.rotation.y = glm::degrees(targetYawRadians) + 90.0f;
+                    spaceship.rotation.z = glm::mix(spaceship.rotation.z, 0.0f, 10.0f * deltaTime);
+
+                    spaceshipCamera = direction;
+                }
+                else {
+                    // Threshold reached! Transition seamlessly to orbiting phase
+                    isOrbitingTarget = true;
+
+                    // Calculate starting angle based on where the ship approached from
+                    glm::vec3 approachVec = spaceship.position - targetPos;
+                    orbitAngle = atan2(approachVec.z, approachVec.x);
+                    std::cout << "Auto-Pilot arrival achieved. Transitioning to orbital lock!" << std::endl;
+                }
+            }
+
+            if (isOrbitingTarget) {
+                // --- ORBITAL LOCK PHASE ---
+                // Advance the angle over time
+                orbitAngle += orbitSpeed * deltaTime;
+
+                // Calculate the new relative orbital coordinates around the moving planet
+                glm::vec3 nextOrbitPos;
+                nextOrbitPos.x = targetPos.x + std::cos(orbitAngle) * orbitRadius;
+                nextOrbitPos.y = targetPos.y;
+                nextOrbitPos.z = targetPos.z + std::sin(orbitAngle) * orbitRadius;
+
+                // Calculate the movement direction vector for orientation mapping
+                glm::vec3 orbitMovementDirection = glm::normalize(nextOrbitPos - spaceship.position);
+
+                // Update physical spaceship location
+                spaceship.position = nextOrbitPos;
+
+                // Turn the ship to dynamically look forward into its circular trajectory curve
+                float targetYawRadians = atan2(-orbitMovementDirection.z, orbitMovementDirection.x);
                 spaceship.rotation.y = glm::degrees(targetYawRadians) + 90.0f;
-
-                // Force ship asset to stay completely level
                 spaceship.rotation.z = glm::mix(spaceship.rotation.z, 0.0f, 10.0f * deltaTime);
 
-                // 3. Keep tracking vector updated
-                spaceshipCamera = direction;
+                // Synchronize tracking vector to match the movement tangent line
+                spaceshipCamera = orbitMovementDirection;
+            }
 
-                // 4. Position camera using your exact setup formulas
+            // --- CAMERA LOCK TRACKING (WITH DYNAMIC ORBIT ANGLE) ---
+            cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+            if (isOrbitingTarget) {
+                // Find the perpendicular vector pointing out to the spaceship's left side
+                glm::vec3 spaceshipLeftVec = glm::normalize(glm::cross(cameraUp, spaceshipCamera));
+
+                // Position the camera 4.0 units away from the left wing, elevated by 1.05 on the Y axis
+                glm::vec3 cameraSideOffset = spaceshipLeftVec * 4.0f;
+                cameraSideOffset.y = 1.05f;
+
+                cameraPos = spaceship.position + cameraSideOffset;
+            }
+            else {
+                // Standard approach camera angle (chasing from straight behind)
                 glm::vec3 cameraBehindOffset = -spaceshipCamera * 4.0f;
                 cameraBehindOffset.y = 1.05f;
 
                 cameraPos = spaceship.position + cameraBehindOffset;
-                cameraFront = glm::normalize(spaceship.position - cameraPos);
-
-                // FORCE CAMERA UP TO BE COMPLETELY LEVEL (Removes all roll/tilt variables)
-                cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
             }
-            else {
-                isAutoPilotActive = false;
-                autoPilotTargetIndex = -1;
-                std::cout << "Auto-Pilot safe arrival achieved. Returning full manual steering control!" << std::endl;
-            }
+
+            // Always keep the camera front pinned directly onto the spaceship's center position
+            cameraFront = glm::normalize(spaceship.position - cameraPos);
+
         }
-        else if (currentCameraMode != SPACESHIP_DRIVE) {
-            isAutoPilotActive = false;
-            autoPilotTargetIndex = -1;
+        else {
+            if (isAutoPilotActive || isOrbitingTarget) {
+                isAutoPilotActive = false;
+                isOrbitingTarget = false;
+                autoPilotTargetIndex = -1;
+            }
         }
 
         // Clear screen
