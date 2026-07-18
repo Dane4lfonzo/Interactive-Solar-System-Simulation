@@ -256,6 +256,11 @@ unsigned int skyboxTexture;
 unsigned int skyboxShader;
 unsigned int spaceshipTexture;
 
+bool isAutoPilotActive = false;
+int autoPilotTargetIndex = -1;
+float autoPilotSpeed = 150.0f;
+float arrivalThreshold = 15.0f; 
+
 // Planet Position Global Variables (mainly x-axis)
 float SunPosX = 4500.0f;
 float MercuryPosX = 82.0f;
@@ -1391,6 +1396,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
     if (currentCameraMode != SPACESHIP_DRIVE) return;
 
+    if (isAutoPilotActive) {
+        // If auto-pilot is driving, only check for emergency cancel input
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            isAutoPilotActive = false;
+            autoPilotTargetIndex = -1;
+            std::cout << "Auto-Pilot canceled via ESC key." << std::endl;
+        }
+        return; // Skip normal manual controls
+    }
+
     // 1. Shift for Speed Boost
     float currentSpeed = spaceshipSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
@@ -1471,35 +1486,73 @@ void updateCamera(float deltaTime) {
 }
 
 void TopBarMenu(GLFWwindow* window) {
-    // Top Menu Bar UI
-// Start the Dear ImGui frame
+    // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
-
-    // Force ImGui's internal IO system to use the true window-relative coordinates
     ImGui::GetIO().AddMousePosEvent(static_cast<float>(mouseX), static_cast<float>(mouseY));
 
     // Create the Main Top Menu Bar
     if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Spaceship Control Panel")) {
-            if (ImGui::MenuItem("Auto-Pilot")) {
-                // Left-click functionality goes here later
-                std::cout << "Button 1 clicked!" << std::endl;
+
+        // 1. Check if we are in DRIVE mode
+        bool isDriveMode = (currentCameraMode == SPACESHIP_DRIVE);
+
+        // 2. Pass 'isDriveMode' as the enabled flag here so the menu grays out when not in drive mode
+        if (ImGui::BeginMenu("Spaceship Control Panel", isDriveMode)) {
+
+            if (ImGui::BeginMenu("Auto-Pilot Target")) {
+                const char* planetNames[] = {
+                    "Sun", "Mercury", "Venus", "Earth", "Mars",
+                    "Jupiter", "Saturn", "Uranus", "Neptune", "Helios",
+                    "Terra", "Solaris", "Castorice", "Sol", "Yharon",
+                    "Gollum", "Dalek", "Bjorne", "centerOfStars", "Surya",
+                    "Dharon", "Cubeo", "BlackHole"
+                };
+
+                // Limit the loop strictly to the 23 primary elements (Indices 0 to 22)
+                size_t maxElements = std::min(shapes.size(), static_cast<size_t>(23));
+                for (size_t i = 0; i < maxElements; ++i) {
+                    // Strict index exclusion rule
+                    if (i == 0 || i == 9 || i == 13 || i == 18 || i == 19 || i == 22) {
+                        continue;
+                    }
+
+                    std::string displayName = planetNames[i];
+                    std::string menuLabel = displayName + " (Index " + std::to_string(i) + ")";
+                    bool isSelected = (isAutoPilotActive && autoPilotTargetIndex == static_cast<int>(i));
+
+                    if (ImGui::MenuItem(menuLabel.c_str(), nullptr, isSelected)) {
+                        isAutoPilotActive = true;
+                        autoPilotTargetIndex = static_cast<int>(i);
+                        std::cout << "Auto-Pilot engaged towards: " << displayName << " (Index " << i << ")" << std::endl;
+                    }
+                }
+
+                if (isAutoPilotActive) {
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Disengage Auto-Pilot")) {
+                        isAutoPilotActive = false;
+                        autoPilotTargetIndex = -1;
+                        std::cout << "Auto-Pilot disengaged manually." << std::endl;
+                    }
+                }
+
+                ImGui::EndMenu(); // Closes "Auto-Pilot Target"
             }
-            if (ImGui::MenuItem("Button 2 (Placeholder)")) {
-                // Left-click functionality goes here later
-                std::cout << "Button 2 clicked!" << std::endl;
-            }
-            if (ImGui::MenuItem("Button 3 (Placeholder)")) {
-                // Left-click functionality goes here later
-                std::cout << "Button 3 clicked!" << std::endl;
-            }
-            ImGui::EndMenu();
+
+            ImGui::EndMenu(); // Closes "Spaceship Control Panel"
         }
+        // 3. This else-if now accurately pairs with the control panel visibility state
+        else if (!isDriveMode) {
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("Switch to SPACESHIP_DRIVE camera mode to access controls.");
+            }
+        }
+
         ImGui::EndMainMenuBar();
     }
 
@@ -1606,9 +1659,6 @@ int main() {
         float deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Spaceship control input
-        processSpaceshipInput(window, deltaTime);
-
         // Update animations
         updateOrbitAnimation(deltaTime);
         updateSaturnRings(deltaTime);
@@ -1621,6 +1671,54 @@ int main() {
 
         if (!shapes.empty()) {
             lightPos = shapes[0].position; // Securely shadows the sun even when moving!
+        }
+
+        // Spaceship control input
+        processSpaceshipInput(window, deltaTime);
+
+        // Auto-Pilot Flight Execution
+        if (isAutoPilotActive && currentCameraMode == SPACESHIP_DRIVE && autoPilotTargetIndex >= 0 && autoPilotTargetIndex < static_cast<int>(shapes.size())) {
+            glm::vec3 targetPos = shapes[autoPilotTargetIndex].position;
+
+            glm::vec3 direction = targetPos - spaceship.position;
+            float distance = glm::length(direction);
+
+            if (distance > arrivalThreshold) {
+                direction = glm::normalize(direction);
+
+                // 1. Move the physical spaceship forward
+                spaceship.position += direction * autoPilotSpeed * deltaTime;
+
+                // 2. Synchronize your ship's horizontal rotation
+                float targetYawRadians = atan2(-direction.z, direction.x);
+                spaceship.rotation.y = glm::degrees(targetYawRadians) + 90.0f;
+
+                // Force ship asset to stay completely level
+                spaceship.rotation.z = glm::mix(spaceship.rotation.z, 0.0f, 10.0f * deltaTime);
+
+                // 3. Keep tracking vector updated
+                spaceshipCamera = direction;
+
+                // 4. Position camera using your exact setup formulas
+                glm::vec3 cameraBehindOffset = -spaceshipCamera * 4.0f;
+                cameraBehindOffset.y = 1.05f;
+
+                cameraPos = spaceship.position + cameraBehindOffset;
+                cameraFront = glm::normalize(spaceship.position - cameraPos);
+
+                // FORCE CAMERA UP TO BE COMPLETELY LEVEL (Removes all roll/tilt variables)
+                cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+            }
+            else {
+                isAutoPilotActive = false;
+                autoPilotTargetIndex = -1;
+                std::cout << "Auto-Pilot safe arrival achieved. Returning full manual steering control!" << std::endl;
+            }
+        }
+        else if (currentCameraMode != SPACESHIP_DRIVE) {
+            isAutoPilotActive = false;
+            autoPilotTargetIndex = -1;
         }
 
         // Clear screen
@@ -1805,6 +1903,8 @@ int main() {
             glBindVertexArray(spaceship.VAO);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(spaceship.indices.size()), GL_UNSIGNED_INT, 0);
         }
+
+
 
         glDepthFunc(GL_LEQUAL);
 
