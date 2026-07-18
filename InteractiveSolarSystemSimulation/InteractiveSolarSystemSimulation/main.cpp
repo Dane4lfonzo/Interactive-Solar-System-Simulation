@@ -256,6 +256,24 @@ unsigned int skyboxTexture;
 unsigned int skyboxShader;
 unsigned int spaceshipTexture;
 
+struct Satellite {
+    glm::vec3 position;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+
+    int targetPlanetIndex;
+    bool isOrbiting;
+    float orbitAngle;
+    float orbitRadius;
+    float orbitSpeed;
+};
+
+// Globals for Satellites
+std::vector<Satellite> launchedSatellites;
+Shape3D satelliteModel;
+unsigned int satelliteTexture;
+
+
 bool isAutoPilotActive = false;
 int autoPilotTargetIndex = -1;
 float autoPilotSpeed = 150.0f;
@@ -760,6 +778,16 @@ void initializeShapes() {
         stbi_set_flip_vertically_on_load(false);
         spaceshipTexture = loadTexture("Material.001_Base_color.jpg");
         stbi_set_flip_vertically_on_load(true); // Turning vertical flip on/off specifically for spaceship textures so it doesnt break the planet texture
+
+        const string satellitePath = "satellite.obj"; 
+        if (loadOBJ(satelliteModel, satellitePath)) {
+            setupShapeBuffers(satelliteModel);
+            satelliteModel.scale = glm::vec3(0.02f); // Adjust scale as needed
+
+            stbi_set_flip_vertically_on_load(false);
+            satelliteTexture = loadTexture("satellite_albedo.jpg"); 
+            stbi_set_flip_vertically_on_load(true);
+        }
     }
 }
 
@@ -1550,6 +1578,43 @@ void TopBarMenu(GLFWwindow* window) {
                 ImGui::EndMenu(); // Closes "Auto-Pilot Target"
             }
 
+            if (ImGui::BeginMenu("Launch Satellite Target")) {
+                const char* planetNames[] = {
+                    "Sun", "Mercury", "Venus", "Earth", "Mars",
+                    "Jupiter", "Saturn", "Uranus", "Neptune", "Helios",
+                    "Terra", "Solaris", "Castorice", "Sol", "Yharon",
+                    "Gollum", "Dalek", "Bjorne", "centerOfStars", "Surya",
+                    "Dharon", "Cubeo", "BlackHole"
+                };
+
+                size_t maxElements = std::min(shapes.size(), static_cast<size_t>(23));
+                for (size_t i = 0; i < maxElements; ++i) {
+                    // Exclude suns/stars/black holes just like auto-pilot
+                    if (i == 0 || i == 9 || i == 13 || i == 18 || i == 19 || i == 22) {
+                        continue;
+                    }
+
+                    std::string displayName = planetNames[i];
+                    std::string menuLabel = "Launch to " + displayName;
+
+                    if (ImGui::MenuItem(menuLabel.c_str())) {
+                        Satellite sat;
+                        sat.position = spaceship.position; // Spawn at current spaceship position
+                        sat.rotation = glm::vec3(0.0f);
+                        sat.scale = satelliteModel.scale;
+                        sat.targetPlanetIndex = static_cast<int>(i);
+                        sat.isOrbiting = false;
+                        sat.orbitAngle = 0.0f;
+                        sat.orbitRadius = shapes[i].scale.x * 2.0f; // Orbit slightly outside the planet's physical boundary
+                        sat.orbitSpeed = 2.0f;
+
+                        launchedSatellites.push_back(sat);
+                        std::cout << "Satellite launched towards: " << displayName << std::endl;
+                    }
+                }
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu(); // Closes "Spaceship Control Panel"
         }
         // 3. This else-if now accurately pairs with the control panel visibility state
@@ -1774,6 +1839,47 @@ int main() {
             }
         }
 
+        // Satellite Flight Execution
+        float satSpeed = 200.0f; // Speed of the satellite mid-transit
+        float satArrivalThreshold = 5.0f;
+
+        for (auto& sat : launchedSatellites) {
+            glm::vec3 targetPlanetPos = shapes[sat.targetPlanetIndex].position;
+
+            if (!sat.isOrbiting) {
+                // --- TRANSIT PHASE ---
+                glm::vec3 direction = targetPlanetPos - sat.position;
+                float distance = glm::length(direction);
+
+                if (distance > sat.orbitRadius + satArrivalThreshold) {
+                    direction = glm::normalize(direction);
+                    sat.position += direction * satSpeed * deltaTime;
+
+                    // Point the satellite along its flight path vector
+                    float targetYaw = atan2(-direction.z, direction.x);
+                    sat.rotation.y = glm::degrees(targetYaw) + 90.0f;
+                }
+                else {
+                    // --- ARRIVAL AT PLANET ---
+                    sat.isOrbiting = true;
+                    glm::vec3 approachVec = sat.position - targetPlanetPos;
+                    sat.orbitAngle = atan2(approachVec.z, approachVec.x);
+                }
+            }
+            else {
+                // --- PERMANENT ORBITAL PHASE ---
+                sat.orbitAngle += sat.orbitSpeed * deltaTime;
+
+                sat.position.x = targetPlanetPos.x + std::cos(sat.orbitAngle) * sat.orbitRadius;
+                sat.position.y = targetPlanetPos.y;
+                sat.position.z = targetPlanetPos.z + std::sin(sat.orbitAngle) * sat.orbitRadius;
+
+                // Keep it facing tangentially forward relative to its orbit path curve
+                sat.rotation.y = glm::degrees(-sat.orbitAngle);
+            }
+        }
+
+
         // Clear screen
         glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1957,6 +2063,37 @@ int main() {
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(spaceship.indices.size()), GL_UNSIGNED_INT, 0);
         }
 
+        if (satelliteModel.VAO != 0 && !launchedSatellites.empty()) {
+            glUseProgram(program);
+            glBindVertexArray(satelliteModel.VAO);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, satelliteTexture);
+            glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0);
+            glUniform1i(glGetUniformLocation(program, "useTexture"), true);
+            glUniform1i(glGetUniformLocation(program, "isSun"), false);
+            glUniform1i(glGetUniformLocation(program, "isBlackHole"), false);
+
+            for (const auto& sat : launchedSatellites) {
+                glm::mat4 modelMatrix = glm::mat4(1.0f);
+                modelMatrix = glm::translate(modelMatrix, sat.position);
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(sat.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(sat.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(sat.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                modelMatrix = glm::scale(modelMatrix, sat.scale);
+
+                glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+                glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(modelMatrix)));
+                glUniformMatrix3fv(glGetUniformLocation(program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+                glUniform3f(glGetUniformLocation(program, "objectColor"), 1.0f, 1.0f, 1.0f);
+
+                glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(satelliteModel.indices.size()), GL_UNSIGNED_INT, 0);
+            }
+            glBindVertexArray(0);
+        }
+
 
 
         glDepthFunc(GL_LEQUAL);
@@ -1989,6 +2126,10 @@ int main() {
         glDeleteBuffers(1, &shape.VBO);
         glDeleteBuffers(1, &shape.EBO);
     }
+    glDeleteVertexArrays(1, &satelliteModel.VAO);
+    glDeleteBuffers(1, &satelliteModel.VBO);
+    glDeleteBuffers(1, &satelliteModel.EBO);
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
