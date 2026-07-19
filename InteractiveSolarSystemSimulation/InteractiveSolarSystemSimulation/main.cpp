@@ -250,7 +250,7 @@ bool showGrid = true;
 bool showOrigin = true;
 bool orbitAnimation = false;
 float globalTime = 0.0f;
-float timeSlowFactor = 8.0f;
+float timeSlowFactor = 240.0f;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int skyboxTexture;
 unsigned int skyboxShader;
@@ -296,7 +296,7 @@ struct SprayParticle {
 bool isTerraformingActive = false;
 int terraformTargetIndex = -1;
 float terraformProgress = 0.0f; // Goes from 0.0 to 1.0
-float terraformSpeed = 0.2f;    // Controls how fast it completes (e.g., 5 seconds)
+float terraformSpeed = 0.2f;    
 
 // Particle Spray Globals
 std::vector<SprayParticle> sprayParticles;
@@ -304,7 +304,7 @@ unsigned int sprayVAO, sprayVBO;
 const int MAX_SPRAY_PARTICLES = 500;
 
 // Textures for Terraforming target states
-unsigned int terraformedTexture; // Load a target texture (e.g., green/blue earth-like)
+unsigned int terraformedTexture; 
 
 // Planet Position Global Variables (mainly x-axis)
 float SunPosX = 4500.0f;
@@ -368,7 +368,7 @@ const int NUM_PARTICLES_SATURN = 8000;
 vector<RingParticle> saturnRings;
 unsigned int ringVAO, ringVBO;
 
-const int NUM_PARTICLES_BHOLE = 32000;
+const int NUM_PARTICLES_BHOLE = 16000;
 vector<RingParticle> bholeRings;
 unsigned int bholeRingVAO, bholeRingVBO;
 
@@ -387,7 +387,7 @@ float lastX = 600.0f;       // Center X of 1200 width window
 float lastY = 450.0f;       // Center Y of 900 height window
 
 float cameraSpeed = 20.0f; // Old speed was 3.0f
-float spaceshipSpeed = 5.0f;
+float spaceshipSpeed = 25.0f;
 float fov = 45.0f;
 bool mouseEnabled = true;
 
@@ -717,7 +717,7 @@ void initializeShapes() {
         bholeRings[i].relativePosition.z = r * sin(angle);
     }
 
-    // 1. Configure Saturn's VAO
+    // Configure Saturn's VAO
     glGenVertexArrays(1, &ringVAO);
     glGenBuffers(1, &ringVBO);
     glBindVertexArray(ringVAO);
@@ -730,7 +730,7 @@ void initializeShapes() {
 
     glBindVertexArray(0); // Safely unbind
 
-    // 2. Configure Black Hole's VAO
+    // Configure Black Hole's VAO
     glGenVertexArrays(1, &bholeRingVAO);
     glGenBuffers(1, &bholeRingVBO);
     glBindVertexArray(bholeRingVAO);
@@ -765,10 +765,23 @@ void initializeShapes() {
         {7, 3.5f, 0.32f, 1.3f},   // Uranus: Titania
         {7, 3.5f, 0.30f, 1.7f},   // Uranus: Oberon
         {7, 3.0f, 0.15f, 1.0f},   // Uranus: Umbrial
-        {8, 3.2f, 0.25f, 1.2f}    // Neptune: Triton
+        {8, 3.2f, 0.25f, 1.2f},    // Neptune: Triton
+
+        {10, 1.5f, 0.15f, 2.0f },  
+        {10, 0.8f, 0.06f, 2.5f},   
+        {11, 1.2f, 0.04f, 1.8f},   
+        {12, 6.0f, 0.40f, 1.5f},   
+        {12, 9.0f, 0.60f, 0.9f},   
+        {12, 11.0f, 0.45f, 0.6f},  
+        {14, 5.5f, 0.35f, 1.1f},
+        {16, 5.5f, 0.35f, 1.1f},   
+        {17, 3.5f, 0.10f, 0.9f},   
+        {17, 1.3f, 0.04f, 0.6f},   
+        {20, 3.5f, 0.32f, 1.3f},   
+        {21, 3.5f, 0.30f, 1.7f}
     };
 
-    // Resize the shapes vector to hold 9 planets + our 10 new moons
+    // Resize the shapes vector to hold all planets and moons
     size_t planetCount = shapes.size();
     shapes.resize(planetCount + moonDefinitions.size());
 
@@ -804,7 +817,7 @@ void initializeShapes() {
         const string satellitePath = "satellite.obj"; 
         if (loadOBJ(satelliteModel, satellitePath)) {
             setupShapeBuffers(satelliteModel);
-            satelliteModel.scale = glm::vec3(0.02f); // Adjust scale as needed
+            satelliteModel.scale = glm::vec3(0.02f); 
 
             stbi_set_flip_vertically_on_load(false);
             satelliteTexture = loadTexture("satellite_albedo.jpg"); 
@@ -817,9 +830,6 @@ void initializeShapes() {
 void updateOrbitAnimation(float deltaTime) {
     if (orbitAnimation) {
         globalTime += deltaTime;
-
-        // Keep the Sun (index 0) locked at the origin
-        //shapes[0].position = glm::vec3(0.0f);
 
         for (size_t i = 0; i < numOfSpheres; ++i) {
             float time = (globalTime + shapes[i].animationPhase) / timeSlowFactor;
@@ -852,7 +862,7 @@ void updateOrbitAnimation(float deltaTime) {
             case 21: radius = CubeoPosX; speed = 0.75f; break;
             }
 
-            // 1. Calculate the pure circular math on the XZ plane relative to the center
+            // Calculate the pure circular math on the XZ plane relative to the center
             float localX = radius * cos((time / 4) * speed);
             float localZ = radius * sin((time / 4) * speed);
 
@@ -900,7 +910,7 @@ void updateOrbitAnimation(float deltaTime) {
                 shapes[i].position.z = shapes[13].position.z + localZ;
             }
             else if (i == 20 || i == 21) {
-                // Anchor your new planets around Surya (shapes[19])
+                // Anchor Dharon and Cubeo around Surya (shapes[19])
                 shapes[i].position.x = shapes[19].position.x + localX;
                 shapes[i].position.y = 0.3f;
                 shapes[i].position.z = shapes[19].position.z + localZ;
@@ -961,11 +971,10 @@ void updateOrbitAnimation(float deltaTime) {
             float speed = 0.0f;
 
             if (i < rotationSpeeds.size()) {
-                // If it's a primary system body, use its custom speed
                 speed = rotationSpeeds[i];
             }
             else {
-                // Safely handles all moons dynamically, no matter how many you add!
+                // Safely handles all moons dynamically
                 speed = 50.0f;
             }
 
@@ -1134,7 +1143,7 @@ void drawBholeRings(unsigned int program) {
     glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(identityModel));
 
     // Give the rings a dusty golden/rock color
-    glUniform1i(glGetUniformLocation(program, "useTexture"), false); // Tell shader not to use texture
+    glUniform1i(glGetUniformLocation(program, "useTexture"), false); 
     glUniform1i(glGetUniformLocation(program, "isSun"), true);
     glUniform3f(glGetUniformLocation(program, "objectColor"), 0.85f, 0.75f, 0.6f);
     
@@ -1186,7 +1195,7 @@ void displayInfo() {
 #endif
 
     cout << "=== Interactive Solar System Simulation ===" << endl;
-    cout << "Current Shape: " << currentShape + 1 << "/9" << " (";
+    cout << "Current Shape: " << currentShape + 1 << "/22" << " (";
 
     switch (currentShape) {
     case (0): 
@@ -1216,6 +1225,48 @@ void displayInfo() {
     case (8):
         cout << "NEPTUNE";
         break;
+    case (9):
+        cout << "HELIOS";
+        break;
+    case (10):
+        cout << "TERRA";
+        break;
+    case (11):
+        cout << "SOLARIS";
+        break;
+    case (12):
+        cout << "CASTORICE";
+        break;
+    case (13):
+        cout << "SOL";
+        break;
+    case (14):
+        cout << "YHARON";
+        break;
+    case (15):
+        cout << "GOLLUM";
+        break;
+    case (16):
+        cout << "DALEK";
+        break;
+    case (17):
+        cout << "BJORNE";
+        break;
+    case (18):
+        cout << "centerOfStars";
+        break;
+    case (19):
+        cout << "SURYA";
+        break;
+    case (20):
+        cout << "DHARON";
+        break;
+    case (21):
+        cout << "CUBEO";
+        break;
+    case (22):
+        cout << "BLACK HOLE";
+        break;
     }
 
     cout << ")" << endl;
@@ -1242,7 +1293,12 @@ void displayInfo() {
     cout << "Grid: " << (showGrid ? "VISIBLE" : "HIDDEN") << endl;
     cout << "Origin: " << (showOrigin ? "VISIBLE" : "HIDDEN") << endl;
 
-    cout << "\n--- CONTROLS ---" << endl;
+    cout << "\n--- SPACESHIP CONTROLS ---" << endl;
+    cout << "0: Toggle Spaceship Mode | WASD: Move Spaceship | LSHIFT: Speed Boost" << endl;
+    cout << "+/-: Ascend/Descend" << endl;
+    cout << "Use mouse to interact with Spaceship Control Panel" << endl;
+
+    cout << "\n--- GENERAL CONTROLS ---" << endl;
     cout << "P: Toggle Mouse | TAB: Lock Camera to planets | Q: Enable FreeCam " << endl;
     cout << "WASD: Move Camera | JL: Rotate Camera X | IK: Rotate Camera Y" << endl;
     cout << "+/-: FOV" << endl;
@@ -1333,6 +1389,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             }
             break;
 
+        // Spaceship mode toggle key
         case GLFW_KEY_0:
             if (action == GLFW_PRESS) {
                 currentCameraMode = SPACESHIP_DRIVE;
@@ -1452,24 +1509,18 @@ void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
     if (currentCameraMode != SPACESHIP_DRIVE) return;
 
     if (isAutoPilotActive) {
-        // If auto-pilot is driving, only check for emergency cancel input
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-            isAutoPilotActive = false;
-            autoPilotTargetIndex = -1;
-            std::cout << "Auto-Pilot canceled via ESC key." << std::endl;
-        }
         return; // Skip normal manual controls
     }
 
-    // 1. Shift for Speed Boost
+    // Shift for Speed Boost
     float currentSpeed = spaceshipSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
-        currentSpeed *= 30.0f;
+        currentSpeed *= 2.0f;
     }
 
 
 
-    // 2. A and D rotate the physical spaceship model structure left and right
+    // A and D rotate the physical spaceship model structure left and right
     float spaceshipRotationSpeed = 60.0f;
     float maxTiltAngle = 30.0f; // Maximum angle the ship will lean (in degrees)
     float targetTilt = 0.0f;    // Level by default
@@ -1483,17 +1534,15 @@ void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
         targetTilt = maxTiltAngle; // Tilt right
     }
 
-    // Smoothly interpolate current roll (Z axis) towards the target tilt
-    // 10.0f controls how fast it snaps/leans into the position. Higher = snappier.
+    // Smoothly interpolate current roll towards the left or right turn
     spaceship.rotation.z = glm::mix(spaceship.rotation.z, targetTilt, 10.0f * deltaTime);
 
-    // 3. Update the direction vector using the updated ship rotation angle
+    // Update the direction vector using the updated ship rotation angle
     float yawRadians = glm::radians(spaceship.rotation.y - 90.0f);
     spaceshipCamera.x = std::cos(-yawRadians);
     spaceshipCamera.z = std::sin(-yawRadians);
     spaceshipCamera = glm::normalize(spaceshipCamera);
 
-    // 4. W and S move along that vector path
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         spaceship.position += spaceshipCamera * currentSpeed * deltaTime;
     }
@@ -1509,7 +1558,7 @@ void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
         spaceship.position.y -= currentSpeed * deltaTime;
     }
 
-    // 6. Camera Offset - Position locks behind
+    // Camera Offset - Position locks behind spaceship
     glm::vec3 cameraBehindOffset = -spaceshipCamera * 4.0f;
     cameraBehindOffset.y = 1.05f; // This here is the camera angle
 
@@ -1522,20 +1571,36 @@ void updateCamera(float deltaTime) {
         return;
 
     if (currentCameraMode == TRACKING) {
+        // Check if shapes vector is empty to prevent crashes
+        if (shapes.empty()) return;
+
+        int safetyCounter = 0; 
+        int totalShapes = static_cast<int>(shapes.size());
+
+        while (safetyCounter < totalShapes) {
+            if (currentShape == 0 || currentShape == 9 ||
+                currentShape == 13 || currentShape == 18 ||
+                currentShape == 19 || currentShape == 22) {
+
+                currentShape = (currentShape + 1) % totalShapes;
+                safetyCounter++;
+            }
+            else {
+                break;
+            }
+        }
+
+        // Normal camera tracking calculations 
         const Shape3D& targetPlanet = shapes[currentShape];
 
-        float camDistance = 320.0f; // 32.0f
+        float camDistance = 15.0f;
 
-        // Calculate dynamic offset vector using the mouse yaw and pitch angles
         glm::vec3 offset;
         offset.x = camDistance * cos(glm::radians(pitch)) * cos(glm::radians(yaw));
         offset.y = camDistance * sin(glm::radians(pitch));
         offset.z = camDistance * cos(glm::radians(pitch)) * sin(glm::radians(yaw));
 
-        // Position the camera relative to the planet's moving coordinates
         cameraPos = targetPlanet.position + offset;
-
-        // Forces the camera to look straight back at the center of the planet
         cameraFront = glm::normalize(targetPlanet.position - cameraPos);
     }
 }
@@ -1553,10 +1618,10 @@ void TopBarMenu(GLFWwindow* window) {
     // Create the Main Top Menu Bar
     if (ImGui::BeginMainMenuBar()) {
 
-        // 1. Check if we are in DRIVE mode
+        // Check if spaceship is in DRIVE mode
         bool isDriveMode = (currentCameraMode == SPACESHIP_DRIVE);
 
-        // 2. Pass 'isDriveMode' as the enabled flag here so the menu grays out when not in drive mode
+        // Pass 'isDriveMode' as the enabled flag here so the menu grays out when not in drive mode
         if (ImGui::BeginMenu("Spaceship Control Panel", isDriveMode)) {
 
             if (ImGui::BeginMenu("Auto-Pilot Target")) {
@@ -1571,7 +1636,7 @@ void TopBarMenu(GLFWwindow* window) {
                 // Limit the loop strictly to the 23 primary elements (Indices 0 to 22)
                 size_t maxElements = std::min(shapes.size(), static_cast<size_t>(23));
                 for (size_t i = 0; i < maxElements; ++i) {
-                    // Strict index exclusion rule
+                    // index exclusion 
                     if (i == 0 || i == 9 || i == 13 || i == 18 || i == 19 || i == 22) {
                         continue;
                     }
@@ -1591,7 +1656,7 @@ void TopBarMenu(GLFWwindow* window) {
                     ImGui::Separator();
                     if (ImGui::MenuItem("Disengage Auto-Pilot")) {
                         isAutoPilotActive = false;
-                        isOrbitingTarget = false; // <-- Clear orbital lock state here
+                        isOrbitingTarget = false; 
                         autoPilotTargetIndex = -1;
                         std::cout << "Auto-Pilot disengaged manually." << std::endl;
                     }
@@ -1692,7 +1757,6 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -1753,6 +1817,7 @@ int main() {
     unsigned int centreStarTexture = loadTexture("lightorangesun.jpg");
     unsigned int blackTexture = loadTexture("Black_colour.jpg");
     unsigned int terraformedTexture = loadTexture("earth.jpg");
+    unsigned int moonTexture = loadTexture("moon.jpg");
 
     std::vector<unsigned int> planetTextures = {
         sunTexture, mercuryTexture, venusTexture, earthTexture,
@@ -1792,7 +1857,7 @@ int main() {
         displayInfo();
 
         if (!shapes.empty()) {
-            lightPos = shapes[0].position; // Securely shadows the sun even when moving!
+            lightPos = shapes[0].position; 
         }
 
         // Spaceship control input
@@ -1816,7 +1881,7 @@ int main() {
                         fov += 1;
                     }
 
-                    // Synchronize your ship's horizontal rotation
+                    // Synchronize ship's horizontal rotation
                     float targetYawRadians = atan2(-direction.z, direction.x);
                     spaceship.rotation.y = glm::degrees(targetYawRadians) + 90.0f;
                     spaceship.rotation.z = glm::mix(spaceship.rotation.z, 0.0f, 10.0f * deltaTime);
@@ -1839,6 +1904,7 @@ int main() {
                 // Advance the angle over time
                 orbitAngle += orbitSpeed * deltaTime;
 
+                // Reset camera FOV back to normal
                 if (fov > 45) {
                     fov -= 5;
                 }
@@ -1939,11 +2005,11 @@ int main() {
 
         // Terraforming Execution 
         if (isTerraformingActive && terraformTargetIndex >= 0) {
-            // 1. Progress tracking
+            // Progress tracking
             terraformProgress += terraformSpeed * deltaTime;
             if (terraformProgress > 1.0f) terraformProgress = 1.0f;
 
-            // 2. Scale Modification (Gradually grow scale by +50% over time as an example)
+            // Scale Modification (Gradually grow scale by +50% over time as an example)
             // You can customize the base vs. target scale here
             Shape3D& planet = shapes[terraformTargetIndex];
             glm::vec3 baseScale = planet.localScale; // Grab or define initial scale configuration
@@ -1952,7 +2018,7 @@ int main() {
             // Gradual sizing shift example:
             planet.scale += glm::vec3(0.5f * deltaTime);
 
-            // 3. Emit Particles from Right Wing
+            // Emit Particles from Right Wing
             // Perpendicular vector pointing out to the spaceship's right side:
             glm::vec3 spaceshipRightVec = glm::normalize(glm::cross(spaceshipCamera, cameraUp));
             glm::vec3 rightWingPos = spaceship.position + (spaceshipRightVec * 0.5f);
@@ -1979,7 +2045,7 @@ int main() {
             }
         }
 
-        // 4. Update existing spray particles physics loop
+        // Update existing spray particles physics loop
         for (size_t i = 0; i < sprayParticles.size(); ) {
             sprayParticles[i].position += sprayParticles[i].velocity * deltaTime;
             sprayParticles[i].lifetime += deltaTime;
@@ -2038,7 +2104,7 @@ int main() {
             glActiveTexture(GL_TEXTURE0);
 
             if (i == terraformTargetIndex && terraformProgress >= 0.8f) {
-                glBindTexture(GL_TEXTURE_2D, terraformedTexture); // Swap over to lush planet asset!
+                glBindTexture(GL_TEXTURE_2D, terraformedTexture); // Change planet texture to look like Earth once terraformed
             }
             else {
                 // Here is where it selects the right texture for each planet
@@ -2113,7 +2179,7 @@ int main() {
                 }
                 else {
                     // FALLBACK FOR MOONS: Use the mercury texture as a placeholder moon rock texture
-                    glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+                    glBindTexture(GL_TEXTURE_2D, moonTexture);
                 }
             }
 
@@ -2122,9 +2188,9 @@ int main() {
                 glUniform1i(glGetUniformLocation(program, "isBlackHole"), true);
                 glUniform3fv(glGetUniformLocation(program, "blackHoleCenter"), 1, glm::value_ptr(shapes[22].position));
 
-                // Bind your 6-sided Skybox Cubemap texture ID here
+                // Bind the 6-sided Skybox Cubemap texture ID 
                 glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture); // <-- Replace with your actual skybox texture variable
+                glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture); 
                 glUniform1i(glGetUniformLocation(program, "skybox"), 1);
             }
             else {
@@ -2178,28 +2244,27 @@ int main() {
             glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(identityModel));
 
             glUniform1i(glGetUniformLocation(program, "useTexture"), false);
-            glUniform1i(glGetUniformLocation(program, "isSun"), true); // Shading bypassed so color stays bright neon
+            glUniform1i(glGetUniformLocation(program, "isSun"), true); 
 
-            // Neon Teal/Green energy blast beam effect color
+        
             glUniform3f(glGetUniformLocation(program, "objectColor"), 0.0f, 1.0f, 0.7f);
 
-            glPointSize(4.0f); // Make them distinctly visible
+            glPointSize(4.0f); // Particle size
             glBindVertexArray(sprayVAO);
             glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(activePositions.size()));
             glBindVertexArray(0);
         }
 
         if (spaceship.VAO != 0) {
-            glUseProgram(program); // Your main shader program
+            glUseProgram(program);
             glBindVertexArray(spaceship.VAO);
 
-            // 1. Bind the spaceship texture to Texture Unit 0
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, spaceshipTexture);
-            glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0); // Tells sampler to use unit 0
-            glUniform1i(glGetUniformLocation(program, "useTexture"), true);   // Turn on texture mapping!
+            glUniform1i(glGetUniformLocation(program, "texture_diffuse"), 0); 
+            glUniform1i(glGetUniformLocation(program, "useTexture"), true);  
 
-            // 2. Transformations
+            // Transformations
             glm::mat4 spaceshipModelMatrix = createTransform3D(spaceship);
             glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(spaceshipModelMatrix));
 
@@ -2208,7 +2273,7 @@ int main() {
 
             glUniform1i(glGetUniformLocation(program, "isSun"), false);
 
-            // 3. Draw
+            // Draw
             glBindVertexArray(spaceship.VAO);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(spaceship.indices.size()), GL_UNSIGNED_INT, 0);
         }
