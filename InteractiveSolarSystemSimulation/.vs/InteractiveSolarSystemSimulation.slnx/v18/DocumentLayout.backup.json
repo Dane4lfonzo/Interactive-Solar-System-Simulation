@@ -1,9 +1,9 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\yasmi\\Documents\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\",
+  "WorkspaceRootPath": "C:\\Users\\User\\Work\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{B257D81D-AA1A-402A-AA6E-A9E44483B927}|InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation.vcxproj|C:\\Users\\yasmi\\Documents\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "AbsoluteMoniker": "D:0:0:{B257D81D-AA1A-402A-AA6E-A9E44483B927}|InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation.vcxproj|C:\\Users\\User\\Work\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{B257D81D-AA1A-402A-AA6E-A9E44483B927}|InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation.vcxproj|solutionrelative:InteractiveSolarSystemSimulation\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
@@ -20,11 +20,11 @@
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "main.cpp",
-              "DocumentMoniker": "C:\\Users\\yasmi\\Documents\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation\\main.cpp",
+              "DocumentMoniker": "C:\\Users\\User\\Work\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation\\main.cpp",
               "RelativeDocumentMoniker": "InteractiveSolarSystemSimulation\\main.cpp",
-              "ToolTip": "C:\\Users\\yasmi\\Documents\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation\\main.cpp",
-              "RelativeToolTip": "InteractiveSolarSystemSimulation\\main.cpp",
-              "ViewState": "AgIAAD8DAAAAAAAAAADwv0wDAAAqAAAAAAAAAA==",
+              "ToolTip": "C:\\Users\\User\\Work\\Interactive-Solar-System-Simulation\\InteractiveSolarSystemSimulation\\InteractiveSolarSystemSimulation\\main.cpp*",
+              "RelativeToolTip": "InteractiveSolarSystemSimulation\\main.cpp*",
+              "ViewState": "AgIAAFkBAAAAAAAAAAAAAHIBAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-05-26T09:36:34.786Z",
               "EditorCaption": ""
