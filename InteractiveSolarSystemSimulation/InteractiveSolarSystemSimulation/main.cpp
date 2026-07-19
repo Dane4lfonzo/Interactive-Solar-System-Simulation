@@ -284,6 +284,28 @@ float orbitAngle = 0.0f;       // Tracks the spaceship's progress around the pla
 float orbitRadius = 15.0f;     // How far away from the planet center you want to orbit
 float orbitSpeed = 1.5f;       // How fast the ship circles the planet
 
+
+struct SprayParticle {
+    glm::vec3 position;
+    glm::vec3 velocity;
+    float lifetime;
+    float maxLifetime;
+};
+
+// Terraforming States
+bool isTerraformingActive = false;
+int terraformTargetIndex = -1;
+float terraformProgress = 0.0f; // Goes from 0.0 to 1.0
+float terraformSpeed = 0.2f;    // Controls how fast it completes (e.g., 5 seconds)
+
+// Particle Spray Globals
+std::vector<SprayParticle> sprayParticles;
+unsigned int sprayVAO, sprayVBO;
+const int MAX_SPRAY_PARTICLES = 500;
+
+// Textures for Terraforming target states
+unsigned int terraformedTexture; // Load a target texture (e.g., green/blue earth-like)
+
 // Planet Position Global Variables (mainly x-axis)
 float SunPosX = 4500.0f;
 float MercuryPosX = 82.0f;
@@ -346,7 +368,7 @@ const int NUM_PARTICLES_SATURN = 8000;
 vector<RingParticle> saturnRings;
 unsigned int ringVAO, ringVBO;
 
-const int NUM_PARTICLES_BHOLE = 16000;
+const int NUM_PARTICLES_BHOLE = 32000;
 vector<RingParticle> bholeRings;
 unsigned int bholeRingVAO, bholeRingVBO;
 
@@ -1555,7 +1577,7 @@ void TopBarMenu(GLFWwindow* window) {
                     }
 
                     std::string displayName = planetNames[i];
-                    std::string menuLabel = displayName + " (Index " + std::to_string(i) + ")";
+                    std::string menuLabel = displayName;
                     bool isSelected = (isAutoPilotActive && autoPilotTargetIndex == static_cast<int>(i));
 
                     if (ImGui::MenuItem(menuLabel.c_str(), nullptr, isSelected)) {
@@ -1589,7 +1611,6 @@ void TopBarMenu(GLFWwindow* window) {
 
                 size_t maxElements = std::min(shapes.size(), static_cast<size_t>(23));
                 for (size_t i = 0; i < maxElements; ++i) {
-                    // Exclude suns/stars/black holes just like auto-pilot
                     if (i == 0 || i == 9 || i == 13 || i == 18 || i == 19 || i == 22) {
                         continue;
                     }
@@ -1599,26 +1620,46 @@ void TopBarMenu(GLFWwindow* window) {
 
                     if (ImGui::MenuItem(menuLabel.c_str())) {
                         Satellite sat;
-                        sat.position = spaceship.position; // Spawn at current spaceship position
+                        sat.position = spaceship.position;
                         sat.rotation = glm::vec3(0.0f);
                         sat.scale = satelliteModel.scale;
                         sat.targetPlanetIndex = static_cast<int>(i);
                         sat.isOrbiting = false;
                         sat.orbitAngle = 0.0f;
-                        sat.orbitRadius = shapes[i].scale.x * 2.0f; // Orbit slightly outside the planet's physical boundary
+                        sat.orbitRadius = shapes[i].scale.x * 2.0f;
                         sat.orbitSpeed = 2.0f;
 
                         launchedSatellites.push_back(sat);
                         std::cout << "Satellite launched towards: " << displayName << std::endl;
                     }
                 }
-                ImGui::EndMenu();
+                ImGui::EndMenu(); // Closes "Launch Satellite Target"
+            }
+
+            // --- Shifted Terraform Planet inside the Spaceship Control Panel dropdown list ---
+            bool canTerraform = (isDriveMode && isOrbitingTarget && autoPilotTargetIndex >= 0);
+
+            if (ImGui::MenuItem("Terraform Planet", nullptr, isTerraformingActive, canTerraform)) {
+                isTerraformingActive = !isTerraformingActive;
+                if (isTerraformingActive) {
+                    terraformTargetIndex = autoPilotTargetIndex;
+                    terraformProgress = 0.0f;
+                    std::cout << "Terraforming sequence engaged on planet index " << terraformTargetIndex << std::endl;
+                }
+                else {
+                    std::cout << "Terraforming sequence aborted." << std::endl;
+                }
+            }
+
+            // Tooltip if hovering the option while disabled inside the list
+            if (!canTerraform && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("Requires Auto-Pilot to be locked into an orbital path around a planet.");
             }
 
             ImGui::EndMenu(); // Closes "Spaceship Control Panel"
         }
-        // 3. This else-if now accurately pairs with the control panel visibility state
-        else if (!isDriveMode) {
+        else {
+            // Show the tooltip if the user hovers over the disabled main "Spaceship Control Panel" button
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
                 ImGui::SetTooltip("Switch to SPACESHIP_DRIVE camera mode to access controls.");
             }
@@ -1711,6 +1752,7 @@ int main() {
     unsigned int suryaTexture = loadTexture("redsun.jpg");
     unsigned int centreStarTexture = loadTexture("lightorangesun.jpg");
     unsigned int blackTexture = loadTexture("Black_colour.jpg");
+    unsigned int terraformedTexture = loadTexture("earth.jpg");
 
     std::vector<unsigned int> planetTextures = {
         sunTexture, mercuryTexture, venusTexture, earthTexture,
@@ -1724,6 +1766,15 @@ int main() {
 
     // Render loop
     float lastFrame = 0.0f;
+
+    glGenVertexArrays(1, &sprayVAO);
+    glGenBuffers(1, &sprayVBO);
+    glBindVertexArray(sprayVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, sprayVBO);
+    glBufferData(GL_ARRAY_BUFFER, MAX_SPRAY_PARTICLES * sizeof(glm::vec3), NULL, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -1761,6 +1812,9 @@ int main() {
 
                     // Move the physical spaceship forward
                     spaceship.position += direction * autoPilotSpeed * deltaTime;
+                    if (fov < 120) {
+                        fov += 1;
+                    }
 
                     // Synchronize your ship's horizontal rotation
                     float targetYawRadians = atan2(-direction.z, direction.x);
@@ -1784,6 +1838,10 @@ int main() {
                 // --- ORBITAL LOCK PHASE ---
                 // Advance the angle over time
                 orbitAngle += orbitSpeed * deltaTime;
+
+                if (fov > 45) {
+                    fov -= 5;
+                }
 
                 // Calculate the new relative orbital coordinates around the moving planet
                 glm::vec3 nextOrbitPos;
@@ -1879,6 +1937,65 @@ int main() {
             }
         }
 
+        // Terraforming Execution 
+        if (isTerraformingActive && terraformTargetIndex >= 0) {
+            // 1. Progress tracking
+            terraformProgress += terraformSpeed * deltaTime;
+            if (terraformProgress > 1.0f) terraformProgress = 1.0f;
+
+            // 2. Scale Modification (Gradually grow scale by +50% over time as an example)
+            // You can customize the base vs. target scale here
+            Shape3D& planet = shapes[terraformTargetIndex];
+            glm::vec3 baseScale = planet.localScale; // Grab or define initial scale configuration
+            glm::vec3 targetScale = glm::vec3(planet.scale.x * 1.001f); // Micro adjustment or linear mix
+
+            // Gradual sizing shift example:
+            planet.scale += glm::vec3(0.5f * deltaTime);
+
+            // 3. Emit Particles from Right Wing
+            // Perpendicular vector pointing out to the spaceship's right side:
+            glm::vec3 spaceshipRightVec = glm::normalize(glm::cross(spaceshipCamera, cameraUp));
+            glm::vec3 rightWingPos = spaceship.position + (spaceshipRightVec * 0.5f);
+
+            // Vector pointing from right wing directly towards the center of the planet
+            glm::vec3 toPlanetVector = glm::normalize(shapes[terraformTargetIndex].position - rightWingPos);
+
+            // Spawn new particles rapidly
+            for (int i = 0; i < 5; ++i) {
+                if (sprayParticles.size() < MAX_SPRAY_PARTICLES) {
+                    SprayParticle p;
+                    p.position = rightWingPos;
+
+                    // Add slight random spread to the trajectory stream
+                    float spreadX = ((rand() % 100) / 100.0f) - 0.5f;
+                    float spreadY = ((rand() % 100) / 100.0f) - 0.5f;
+                    float spreadZ = ((rand() % 100) / 100.0f) - 0.5f;
+
+                    p.velocity = (toPlanetVector * 40.0f) + glm::vec3(spreadX, spreadY, spreadZ) * 5.0f;
+                    p.lifetime = 0.0f;
+                    p.maxLifetime = 0.8f; // Despawn quickly upon approaching target area
+                    sprayParticles.push_back(p);
+                }
+            }
+        }
+
+        // 4. Update existing spray particles physics loop
+        for (size_t i = 0; i < sprayParticles.size(); ) {
+            sprayParticles[i].position += sprayParticles[i].velocity * deltaTime;
+            sprayParticles[i].lifetime += deltaTime;
+
+            if (sprayParticles[i].lifetime >= sprayParticles[i].maxLifetime) {
+                sprayParticles.erase(sprayParticles.begin() + i);
+            }
+            else {
+                ++i;
+            }
+        }
+
+        // Safety fallback: if orbital breaks away, stop terraforming sequence
+        if (!isOrbitingTarget) {
+            isTerraformingActive = false;
+        }
 
         // Clear screen
         glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
@@ -1919,80 +2036,87 @@ int main() {
             }
 
             glActiveTexture(GL_TEXTURE0);
-            // Here is where it selects the right texture for each planet
-            if (i == 0) {
-                glBindTexture(GL_TEXTURE_2D, sunTexture);
-            }
-            else if (i == 1) {
-                glBindTexture(GL_TEXTURE_2D, mercuryTexture);
-            }
-            else if (i == 2) {
-                glBindTexture(GL_TEXTURE_2D, venusTexture);
-            }
-            else if (i == 3) {
-                glBindTexture(GL_TEXTURE_2D, earthTexture);
-            }
-            else if (i == 4) {
-                glBindTexture(GL_TEXTURE_2D, marsTexture);
-            }
-            else if (i == 5) {
-                glBindTexture(GL_TEXTURE_2D, jupiterTexture);
-            }
-            else if (i == 6) {
-                glBindTexture(GL_TEXTURE_2D, saturnTexture);
-            }
-            else if (i == 7) {
-                glBindTexture(GL_TEXTURE_2D, uranusTexture);
-            }
-            else if (i == 8) {
-                glBindTexture(GL_TEXTURE_2D, neptuneTexture);
-            }
-            else if (i == 9) {
-                glBindTexture(GL_TEXTURE_2D, heliosTexture);
-            }
-            else if (i == 10) {
-                glBindTexture(GL_TEXTURE_2D, neptuneTexture);
-            }
-            else if (i == 11) {
-                glBindTexture(GL_TEXTURE_2D, earthTexture);
-            }
-            else if (i == 12) {
-                glBindTexture(GL_TEXTURE_2D, saturnTexture);
-            }
-            else if (i == 13) {
-                glBindTexture(GL_TEXTURE_2D, solTexture);
-            }
-            else if (i == 14) {
-                glBindTexture(GL_TEXTURE_2D, marsTexture);
-            }
-            else if (i == 15) {
-                glBindTexture(GL_TEXTURE_2D, venusTexture);
-            }
-            else if (i == 16) {
-                glBindTexture(GL_TEXTURE_2D, uranusTexture);
-            }
-            else if (i == 17) {
-                glBindTexture(GL_TEXTURE_2D, mercuryTexture);
-            }
-            else if (i == 18) {
-                glBindTexture(GL_TEXTURE_2D, centreStarTexture);
-            }
-            else if (i == 19) {
-                glBindTexture(GL_TEXTURE_2D, suryaTexture);
-            }
-            else if (i == 20) {
-                glBindTexture(GL_TEXTURE_2D, saturnTexture);
-            }
-            else if (i == 21) {
-                glBindTexture(GL_TEXTURE_2D, jupiterTexture);
-            }
-            else if (i == 22) {
-                glBindTexture(GL_TEXTURE_2D, blackTexture);
+
+            if (i == terraformTargetIndex && terraformProgress >= 0.8f) {
+                glBindTexture(GL_TEXTURE_2D, terraformedTexture); // Swap over to lush planet asset!
             }
             else {
-                // FALLBACK FOR MOONS: Use the mercury texture as a placeholder moon rock texture
-                glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+                // Here is where it selects the right texture for each planet
+                if (i == 0) {
+                    glBindTexture(GL_TEXTURE_2D, sunTexture);
+                }
+                else if (i == 1) {
+                    glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+                }
+                else if (i == 2) {
+                    glBindTexture(GL_TEXTURE_2D, venusTexture);
+                }
+                else if (i == 3) {
+                    glBindTexture(GL_TEXTURE_2D, earthTexture);
+                }
+                else if (i == 4) {
+                    glBindTexture(GL_TEXTURE_2D, marsTexture);
+                }
+                else if (i == 5) {
+                    glBindTexture(GL_TEXTURE_2D, jupiterTexture);
+                }
+                else if (i == 6) {
+                    glBindTexture(GL_TEXTURE_2D, saturnTexture);
+                }
+                else if (i == 7) {
+                    glBindTexture(GL_TEXTURE_2D, uranusTexture);
+                }
+                else if (i == 8) {
+                    glBindTexture(GL_TEXTURE_2D, neptuneTexture);
+                }
+                else if (i == 9) {
+                    glBindTexture(GL_TEXTURE_2D, heliosTexture);
+                }
+                else if (i == 10) {
+                    glBindTexture(GL_TEXTURE_2D, neptuneTexture);
+                }
+                else if (i == 11) {
+                    glBindTexture(GL_TEXTURE_2D, earthTexture);
+                }
+                else if (i == 12) {
+                    glBindTexture(GL_TEXTURE_2D, saturnTexture);
+                }
+                else if (i == 13) {
+                    glBindTexture(GL_TEXTURE_2D, solTexture);
+                }
+                else if (i == 14) {
+                    glBindTexture(GL_TEXTURE_2D, marsTexture);
+                }
+                else if (i == 15) {
+                    glBindTexture(GL_TEXTURE_2D, venusTexture);
+                }
+                else if (i == 16) {
+                    glBindTexture(GL_TEXTURE_2D, uranusTexture);
+                }
+                else if (i == 17) {
+                    glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+                }
+                else if (i == 18) {
+                    glBindTexture(GL_TEXTURE_2D, centreStarTexture);
+                }
+                else if (i == 19) {
+                    glBindTexture(GL_TEXTURE_2D, suryaTexture);
+                }
+                else if (i == 20) {
+                    glBindTexture(GL_TEXTURE_2D, saturnTexture);
+                }
+                else if (i == 21) {
+                    glBindTexture(GL_TEXTURE_2D, jupiterTexture);
+                }
+                else if (i == 22) {
+                    glBindTexture(GL_TEXTURE_2D, blackTexture);
+                }
+                else {
+                    // FALLBACK FOR MOONS: Use the mercury texture as a placeholder moon rock texture
+                    glBindTexture(GL_TEXTURE_2D, mercuryTexture);
+                }
             }
+
 
             if (i == 22) {
                 glUniform1i(glGetUniformLocation(program, "isBlackHole"), true);
@@ -2038,6 +2162,32 @@ int main() {
 
         drawSaturnRings(program);
         drawBholeRings(program);
+
+        if (!sprayParticles.empty()) {
+            glUseProgram(program);
+
+            std::vector<glm::vec3> activePositions;
+            for (const auto& p : sprayParticles) {
+                activePositions.push_back(p.position);
+            }
+
+            glBindBuffer(GL_ARRAY_BUFFER, sprayVBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, activePositions.size() * sizeof(glm::vec3), activePositions.data());
+
+            glm::mat4 identityModel = glm::mat4(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(identityModel));
+
+            glUniform1i(glGetUniformLocation(program, "useTexture"), false);
+            glUniform1i(glGetUniformLocation(program, "isSun"), true); // Shading bypassed so color stays bright neon
+
+            // Neon Teal/Green energy blast beam effect color
+            glUniform3f(glGetUniformLocation(program, "objectColor"), 0.0f, 1.0f, 0.7f);
+
+            glPointSize(4.0f); // Make them distinctly visible
+            glBindVertexArray(sprayVAO);
+            glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(activePositions.size()));
+            glBindVertexArray(0);
+        }
 
         if (spaceship.VAO != 0) {
             glUseProgram(program); // Your main shader program
@@ -2129,6 +2279,9 @@ int main() {
     glDeleteVertexArrays(1, &satelliteModel.VAO);
     glDeleteBuffers(1, &satelliteModel.VBO);
     glDeleteBuffers(1, &satelliteModel.EBO);
+
+    glDeleteVertexArrays(1, &sprayVAO);
+    glDeleteBuffers(1, &sprayVBO);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
