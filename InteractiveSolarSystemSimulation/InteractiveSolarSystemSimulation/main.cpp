@@ -281,7 +281,7 @@ float arrivalThreshold = 15.0f;
 
 bool isOrbitingTarget = false;
 float orbitAngle = 0.0f;       // Tracks the spaceship's progress around the planet
-float orbitRadius = 15.0f;     // How far away from the planet center you want to orbit
+float orbitRadius = 15.0f;     // Distance of the spaceship from the planet during orbit
 float orbitSpeed = 1.5f;       // How fast the ship circles the planet
 
 
@@ -1915,19 +1915,17 @@ int main() {
                 nextOrbitPos.y = targetPos.y;
                 nextOrbitPos.z = targetPos.z + std::sin(orbitAngle) * orbitRadius;
 
-                // Calculate the movement direction vector for orientation mapping
-                glm::vec3 orbitMovementDirection = glm::normalize(nextOrbitPos - spaceship.position);
+                glm::vec3 tangentDir = glm::normalize(glm::vec3(-std::sin(orbitAngle), 0.0f, std::cos(orbitAngle)));
 
-                // Update physical spaceship location
                 spaceship.position = nextOrbitPos;
 
-                // Turn the ship to dynamically look forward into its circular trajectory curve
-                float targetYawRadians = atan2(-orbitMovementDirection.z, orbitMovementDirection.x);
+                // Turn the ship to dynamically look forward into its circular trajectory curve using the tangent vector
+                float targetYawRadians = atan2(-tangentDir.z, tangentDir.x);
                 spaceship.rotation.y = glm::degrees(targetYawRadians) + 90.0f;
                 spaceship.rotation.z = glm::mix(spaceship.rotation.z, 0.0f, 10.0f * deltaTime);
 
                 // Synchronize tracking vector to match the movement tangent line
-                spaceshipCamera = orbitMovementDirection;
+                spaceshipCamera = tangentDir;
             }
 
             // --- CAMERA LOCK TRACKING (WITH DYNAMIC ORBIT ANGLE) ---
@@ -2009,8 +2007,8 @@ int main() {
             terraformProgress += terraformSpeed * deltaTime;
             if (terraformProgress > 1.0f) terraformProgress = 1.0f;
 
-            // Scale Modification (Gradually grow scale by +50% over time as an example)
-            // You can customize the base vs. target scale here
+            // Scale Modification 
+            // Customize the base vs. target scale here
             Shape3D& planet = shapes[terraformTargetIndex];
             glm::vec3 baseScale = planet.localScale; // Grab or define initial scale configuration
             glm::vec3 targetScale = glm::vec3(planet.scale.x * 1.001f); // Micro adjustment or linear mix
@@ -2026,7 +2024,7 @@ int main() {
             // Vector pointing from right wing directly towards the center of the planet
             glm::vec3 toPlanetVector = glm::normalize(shapes[terraformTargetIndex].position - rightWingPos);
 
-            // Spawn new particles rapidly
+            // Spawn new particles for terraform
             for (int i = 0; i < 5; ++i) {
                 if (sprayParticles.size() < MAX_SPRAY_PARTICLES) {
                     SprayParticle p;
