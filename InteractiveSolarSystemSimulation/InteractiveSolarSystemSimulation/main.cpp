@@ -1641,8 +1641,30 @@ void TopBarMenu(GLFWwindow* window) {
                         continue;
                     }
 
+                    std::string starName;
                     std::string displayName = planetNames[i];
-                    std::string menuLabel = displayName;
+                    std::string menuLabel; //= displayName
+
+                    if (i >= 0 && i < 9) 
+                    {
+                        starName = "Sun";
+                    }
+                    else if (i >= 9 && i < 13)
+                    {
+                        starName = "Helios";
+                    }
+                    else if (i >= 13 && i < 18)
+                    {
+                        starName = "Sol";
+                    }
+                    else if (i >= 18 && i < 22) 
+                    {
+                        starName = "Surya";
+                    }
+
+                    // Construct the label once using the correct, modified starName
+                    menuLabel = displayName + " (Star System: " + starName + ")";
+
                     bool isSelected = (isAutoPilotActive && autoPilotTargetIndex == static_cast<int>(i));
 
                     if (ImGui::MenuItem(menuLabel.c_str(), nullptr, isSelected)) {
@@ -1680,8 +1702,28 @@ void TopBarMenu(GLFWwindow* window) {
                         continue;
                     }
 
+                    std::string starName;
                     std::string displayName = planetNames[i];
-                    std::string menuLabel = "Launch to " + displayName;
+                    std::string menuLabel; // "Launch to " + displayName;
+
+                    if (i >= 0 && i < 9) 
+                    {
+                        starName = "Sun";
+                    }
+                    else if (i >= 9 && i < 13)
+                    {
+                        starName = "Helios";
+                    }
+                    else if (i >= 13 && i < 18)
+                    {
+                        starName = "Sol";
+                    }
+                    else if (i >= 18 && i < 22) 
+                    {
+                        starName = "Surya";
+                    }
+
+                    menuLabel = "Launch to " + displayName + " (Star System: " + starName + ")";
 
                     if (ImGui::MenuItem(menuLabel.c_str())) {
                         Satellite sat;
