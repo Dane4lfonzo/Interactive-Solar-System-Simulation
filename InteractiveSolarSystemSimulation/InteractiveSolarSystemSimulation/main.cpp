@@ -250,7 +250,7 @@ bool showGrid = true;
 bool showOrigin = true;
 bool orbitAnimation = false;
 float globalTime = 0.0f;
-float timeSlowFactor = 8.0f;
+float timeSlowFactor = 240.0f;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int skyboxTexture;
 unsigned int skyboxShader;
@@ -368,7 +368,7 @@ const int NUM_PARTICLES_SATURN = 8000;
 vector<RingParticle> saturnRings;
 unsigned int ringVAO, ringVBO;
 
-const int NUM_PARTICLES_BHOLE = 32000;
+const int NUM_PARTICLES_BHOLE = 16000;
 vector<RingParticle> bholeRings;
 unsigned int bholeRingVAO, bholeRingVBO;
 
@@ -387,7 +387,7 @@ float lastX = 600.0f;       // Center X of 1200 width window
 float lastY = 450.0f;       // Center Y of 900 height window
 
 float cameraSpeed = 20.0f; // Old speed was 3.0f
-float spaceshipSpeed = 5.0f;
+float spaceshipSpeed = 25.0f;
 float fov = 45.0f;
 bool mouseEnabled = true;
 
@@ -765,7 +765,20 @@ void initializeShapes() {
         {7, 3.5f, 0.32f, 1.3f},   // Uranus: Titania
         {7, 3.5f, 0.30f, 1.7f},   // Uranus: Oberon
         {7, 3.0f, 0.15f, 1.0f},   // Uranus: Umbrial
-        {8, 3.2f, 0.25f, 1.2f}    // Neptune: Triton
+        {8, 3.2f, 0.25f, 1.2f},    // Neptune: Triton
+
+        {10, 1.5f, 0.15f, 2.0f },  
+        {10, 0.8f, 0.06f, 2.5f},   
+        {11, 1.2f, 0.04f, 1.8f},   
+        {12, 6.0f, 0.40f, 1.5f},   
+        {12, 9.0f, 0.60f, 0.9f},   
+        {12, 11.0f, 0.45f, 0.6f},  
+        {14, 5.5f, 0.35f, 1.1f},
+        {16, 5.5f, 0.35f, 1.1f},   
+        {17, 3.5f, 0.10f, 0.9f},   
+        {17, 1.3f, 0.04f, 0.6f},   
+        {20, 3.5f, 0.32f, 1.3f},   
+        {21, 3.5f, 0.30f, 1.7f}
     };
 
     // Resize the shapes vector to hold all planets and moons
@@ -1502,7 +1515,7 @@ void processSpaceshipInput(GLFWwindow* window, float deltaTime) {
     // Shift for Speed Boost
     float currentSpeed = spaceshipSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
-        currentSpeed *= 30.0f;
+        currentSpeed *= 2.0f;
     }
 
 
@@ -1558,20 +1571,36 @@ void updateCamera(float deltaTime) {
         return;
 
     if (currentCameraMode == TRACKING) {
+        // Check if shapes vector is empty to prevent crashes
+        if (shapes.empty()) return;
+
+        int safetyCounter = 0; 
+        int totalShapes = static_cast<int>(shapes.size());
+
+        while (safetyCounter < totalShapes) {
+            if (currentShape == 0 || currentShape == 9 ||
+                currentShape == 13 || currentShape == 18 ||
+                currentShape == 19 || currentShape == 22) {
+
+                currentShape = (currentShape + 1) % totalShapes;
+                safetyCounter++;
+            }
+            else {
+                break;
+            }
+        }
+
+        // Normal camera tracking calculations 
         const Shape3D& targetPlanet = shapes[currentShape];
 
-        float camDistance = 320.0f; // 32.0f
+        float camDistance = 15.0f;
 
-        // Calculate dynamic offset vector using the mouse yaw and pitch angles
         glm::vec3 offset;
         offset.x = camDistance * cos(glm::radians(pitch)) * cos(glm::radians(yaw));
         offset.y = camDistance * sin(glm::radians(pitch));
         offset.z = camDistance * cos(glm::radians(pitch)) * sin(glm::radians(yaw));
 
-        // Position the camera relative to the planet's moving coordinates
         cameraPos = targetPlanet.position + offset;
-
-        // Forces the camera to look straight back at the center of the planet
         cameraFront = glm::normalize(targetPlanet.position - cameraPos);
     }
 }
